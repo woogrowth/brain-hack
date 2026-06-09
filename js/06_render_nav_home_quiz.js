@@ -227,29 +227,24 @@ function renderQuizModeSelect() {
   const modes = [
     {
       id:'random', icon:'🎲', title:'15문제 모드',
-      desc:'무작위 15문제를 풀고 결과를 확인합니다
-중복 없음, 진행도 표시 (1/15)',
+      desc:`무작위 15문제를 풀고 결과를 확인합니다\n중복 없음, 진행도 표시 (1/15)`,
       color:'var(--cyan)', locked:false
     },
     {
       id:'infinite', icon:'∞', title:'무한 모드',
-      desc:'문제가 무한히 출제됩니다
-전체 소진 시 자동 재셔플',
+      desc:`문제가 무한히 출제됩니다\n전체 소진 시 자동 재셔플`,
       color:'var(--green)', locked:false
     },
     {
       id:'popular', icon:'💗', title:'인기 문제',
-      desc:'하트를 많이 받은 순서로 출제
-투표로 인기 문제가 결정됩니다',
+      desc:`하트를 많이 받은 순서로 출제\n투표로 인기 문제가 결정됩니다`,
       color:'var(--pink)', locked:false
     },
     {
       id:'wrongNote', icon:'📝', title:'오답노트',
       desc:isEmerald
-        ? `틀린 문제만 다시 풀기
-현재 오답 ${wrongCount}문제`
-        : '🔒 에메랄드(7,000 XP) 이상만 이용 가능
-' + (u ? `현재: ${(u.xp||0).toLocaleString()} / 7,000 XP` : '로그인이 필요합니다'),
+        ? `틀린 문제만 다시 풀기\n현재 오답 ${wrongCount}문제`
+        : `🔒 에메랄드(7,000 XP) 이상만 이용 가능\n${u ? `현재: ${(u.xp||0).toLocaleString()} / 7,000 XP` : '로그인이 필요합니다'}`,
       color:'var(--yellow)', locked:!isEmerald
     },
   ];
