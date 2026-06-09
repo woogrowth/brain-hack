@@ -52,7 +52,6 @@ function renderSettingsModal() {
 
   if(tab === 'account' && u) {
     tabContent = h('div',{},
-      // ── 닉네임 변경 ──
       h('div',{style:{marginBottom:'20px'}},
         h('div',{className:'slabel',style:{marginBottom:'8px'}},'닉네임 변경'),
         h('div',{style:{display:'flex',gap:'8px'}},
@@ -66,7 +65,6 @@ function renderSettingsModal() {
           }},'변경')
         )
       ),
-      // ── 아이디(username) 변경 ──
       h('div',{style:{marginBottom:'20px',paddingBottom:'20px',borderBottom:'1px solid var(--border)'}},
         h('div',{className:'slabel',style:{marginBottom:'8px'}},'아이디 변경 (현재: '+u.username+')'),
         h('div',{style:{fontFamily:'var(--mono)',fontSize:'10px',color:'var(--dim)',marginBottom:'8px'}},'⚠ 아이디 변경 후 재로그인이 필요합니다'),
@@ -90,7 +88,6 @@ function renderSettingsModal() {
           }},'변경')
         )
       ),
-      // ── 비밀번호 변경 ──
       h('div',{style:{marginBottom:'20px',paddingBottom:'20px',borderBottom:'1px solid var(--border)'}},
         h('div',{className:'slabel',style:{marginBottom:'8px'}},'비밀번호 변경'),
         h('div',{style:{display:'flex',flexDirection:'column',gap:'6px',marginBottom:'12px'}},
@@ -114,7 +111,6 @@ function renderSettingsModal() {
           showToast('비밀번호가 변경되었습니다','success');
         }},'비밀번호 변경')
       ),
-      // ── 계정 탈퇴 ──
       h('div',{style:{borderTop:'1px solid var(--pink)33',paddingTop:'16px'}},
         h('div',{style:{fontFamily:'var(--mono)',fontSize:'11px',color:'var(--pink)',marginBottom:'10px'}},'⚠ 위험 구역'),
         h('div',{style:{fontFamily:'var(--mono)',fontSize:'11px',color:'var(--dim)',marginBottom:'8px'}},'계정 탈퇴 시 모든 데이터가 삭제됩니다. 아이디를 입력하여 확인하세요.'),
@@ -397,85 +393,57 @@ function render() {
     return;
   }
 
-  const wrap = h('div',{});
-
-  const scanlines = h('div',{style:{position:'fixed',inset:'0',pointerEvents:'none',zIndex:'9999',
-    background:'repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,.10) 2px,rgba(0,0,0,.10) 4px)',
-    animation:'flicker 9s infinite'}});
-  const glow1 = h('div',{style:{position:'fixed',top:'20%',left:'5%',width:'350px',height:'350px',borderRadius:'50%',
-    background:'radial-gradient(circle,#00f5ff06 0%,transparent 70%)',pointerEvents:'none',zIndex:'0'}});
-  const glow2 = h('div',{style:{position:'fixed',bottom:'15%',right:'3%',width:'250px',height:'250px',borderRadius:'50%',
-    background:'radial-gradient(circle,#ff003c05 0%,transparent 70%)',pointerEvents:'none',zIndex:'0'}});
-
-  if(state.repair && !state.currentUser?.isAdmin) {
-    wrap.appendChild(h('div',{style:{position:'fixed',inset:'0',background:'rgba(1,3,8,.97)',zIndex:'8000',
-      display:'flex',alignItems:'center',justifyContent:'center',flexDirection:'column',gap:'20px'}},
-      h('div',{style:{fontSize:'64px'}},'🔧'),
-      h('div',{style:{fontFamily:'var(--display)',fontSize:'28px',color:'#ff8800',letterSpacing:'2px'}},'수리 중입니다'),
-      h('div',{style:{fontFamily:'var(--mono)',fontSize:'12px',color:'var(--dim)',textAlign:'center',lineHeight:'2'}},'서비스 점검 중입니다. 잠시 후 다시 이용해주세요.')
-    ));
-    wrap.appendChild(scanlines);
-    root.appendChild(wrap);
-    return;
+  if(state.screen === 'quiz') {
+    root.appendChild(renderQuiz());
+  } else if(state.screen === 'quizMode') {
+    root.appendChild(renderQuizMode());
+  } else if(state.screen === 'rank') {
+    root.appendChild(renderRank());
+  } else if(state.screen === 'shop') {
+    root.appendChild(renderShop());
+  } else if(state.screen === 'chat') {
+    root.appendChild(renderChat());
+  } else if(state.screen === 'profile') {
+    root.appendChild(renderProfile());
+  } else if(state.screen === 'social') {
+    root.appendChild(renderSocial());
+  } else if(state.screen === 'club') {
+    root.appendChild(renderClub());
+  } else {
+    root.appendChild(renderHome());
   }
 
-  if(state.emergency && !state.currentUser?.isAdmin) {
-    wrap.appendChild(h('div',{style:{position:'fixed',inset:'0',background:'rgba(0,0,0,.9)',zIndex:'8000',
-      display:'flex',alignItems:'center',justifyContent:'center',flexDirection:'column',gap:'20px'}},
-      h('div',{style:{fontFamily:'var(--display)',fontSize:'32px',color:'var(--pink)'}},'⚠ 서비스 점검 중'),
-      h('div',{style:{fontFamily:'var(--mono)',fontSize:'14px',color:'var(--dim)'}},'관리자에 의해 일시 중지되었습니다.')
-    ));
+  if(state.modal === 'login') root.appendChild(renderLoginModal());
+  else if(state.modal === 'signup') root.appendChild(renderSignupModal());
+  else if(state.modal === 'problem_add') root.appendChild(renderProblemAddModal());
+  else if(state.modal === 'item_detail') root.appendChild(renderItemDetailModal());
+
+  if(state.settingsOpen) root.appendChild(renderSettingsModal());
+
+  if(state.rankUpInfo && state.rankUpInfo.show) {
+    root.appendChild(createRankUpOverlay(state.rankUpInfo));
   }
-
-  if(state.toast) {
-    const colors={success:'var(--green)',error:'var(--pink)',info:'var(--cyan)',warning:'var(--yellow)'};
-    const c=colors[state.toast.type]||colors.info;
-    wrap.appendChild(h('div',{style:{position:'fixed',bottom:'24px',right:'24px',zIndex:'9000',
-      background:'var(--bg2)',border:'1px solid '+c,padding:'12px 20px',fontFamily:'var(--mono)',fontSize:'12px',color:c,
-      boxShadow:'0 0 20px '+c+'44',animation:'slideIn .25s ease',maxWidth:'320px',letterSpacing:'1px'}},state.toast.msg));
-  }
-
-  const appDiv = h('div',{className:'app',style:{position:'relative',zIndex:'1'}});
-  appDiv.appendChild(renderNav());
-
-  if(state.screen==='home')           appDiv.appendChild(renderHome());
-  else if(state.screen==='quizMode')  appDiv.appendChild(renderQuizModeSelect());
-  else if(state.screen==='quiz')      appDiv.appendChild(renderQuiz());
-  else if(state.screen==='leaderboard') appDiv.appendChild(renderLeaderboard());
-  else if(state.screen==='shop')      appDiv.appendChild(renderShop());
-  else if(state.screen==='chat')      appDiv.appendChild(renderChat());
-  else if(state.screen==='profile')   appDiv.appendChild(renderProfile());
-  else if(state.screen==='clubs')     appDiv.appendChild(renderClubs());
-  else if(state.screen==='social')    appDiv.appendChild(renderSocial());
-
-  if(state.modal==='login')        appDiv.appendChild(renderLoginModal());
-  else if(state.modal==='signup')  appDiv.appendChild(renderSignupModal());
-  else if(state.modal==='submitProblem'&&state.currentUser) appDiv.appendChild(renderSubmitProblemModal());
-
-  if(state.settingsOpen) appDiv.appendChild(renderSettingsModal());
-
-  // 랭크업 애니메이션 (화려한 버전)
-  if(state.rankUpInfo?.show) {
-    const rankUpEl = createRankUpOverlay(state.rankUpInfo);
-    wrap.appendChild(rankUpEl);
-  }
-
-  wrap.appendChild(scanlines);
-  wrap.appendChild(glow1);
-  wrap.appendChild(glow2);
-  wrap.appendChild(appDiv);
-  root.appendChild(wrap);
 }
 
-// ─── SEED DEFAULT ACCOUNT ───
+// ─── 초기 데이터 로드 ───
 (function() {
   const users = ls.get('cp_users', []);
-  if(!users.find(u => u.username === 'woogrowth')) {
-    ls.set('cp_users', [...users, {
-      username:'woogrowth', password:'woogrowth1',
-      nickname:'woogrowth', job:'etc', country:'KR', gender:'M',
-      flag:'🇰🇷', char:'🧑', score:0, xp:0, coins:100,
-      solved:[], submitted:0, achievements:[],
+  if(users.length === 0) {
+    ls.set('cp_users', [{
+      username:'admin', password:'password123', nickname:'관리자',
+      job:'freelancer', country:'KR', flag:'🇰🇷', char:'🤖',
+      score:0, xp:100000, coins:100000, solved:[], achievements:[],
+      inventory:[], equipped:{frame:'',hat:'',bg:'',acc:'',title:''},
+      streak:0, maxStreak:0, attendanceDates:[], attendanceStreak:0,
+      friends:[], blocked:[], friendRequests:[],
+      wrongAnswers:[], usedPromos:[], heartVoted:{},
+      pushEnabled:false, warnings:0, banned:false, banUntil:null,
+      createdAt:new Date().toISOString(), lastLogin:null,
+      isAdmin:true, clubsCreated:0
+    },{
+      username:'user01', password:'password123', nickname:'두뇌풀기',
+      job:'student_univ', country:'KR', flag:'🇰🇷', char:'🧑‍🎓',
+      score:0, xp:0, coins:100, solved:[], achievements:[],
       inventory:[], equipped:{frame:'',hat:'',bg:'',acc:'',title:''},
       streak:0, maxStreak:0, attendanceDates:[], attendanceStreak:0,
       friends:[], blocked:[], friendRequests:[],
