@@ -31,10 +31,7 @@ function renderSettingsModal() {
       h('div',{className:'slabel',style:{marginBottom:'10px'},id:'fontSizeTitle'},'글씨 크기: '+(state.fontSizePercent||100)+'%'),
       h('div',{style:{display:'flex',alignItems:'center',gap:'12px',marginBottom:'18px'}},
         h('input',{
-          type:'range',
-          min:'50',
-          max:'150',
-          value:state.fontSizePercent||100,
+          type:'range', min:'50', max:'150', value:state.fontSizePercent||100,
           style:{flex:1,height:'6px',cursor:'pointer'},
           onInput:e=>{
             const pct = parseInt(e.target.value,10);
@@ -55,38 +52,70 @@ function renderSettingsModal() {
 
   if(tab === 'account' && u) {
     tabContent = h('div',{},
-      h('div',{className:'slabel',style:{marginBottom:'8px'}},'닉네임 변경'),
-      h('div',{style:{display:'flex',gap:'8px',marginBottom:'16px'}},
-        h('input',{className:'inp',style:{flex:'1'},placeholder:'새 닉네임',
-          value:state.settingsNickname||'',onInput:e=>setQ({settingsNickname:e.target.value})}),
-        h('button',{className:'cpbtn primary sm',onClick:()=>{
-          if(!(state.settingsNickname||'').trim()){showToast('닉네임을 입력하세요','error');return;}
-          updateUser({...state.currentUser,nickname:state.settingsNickname.trim()});
-          showToast('닉네임이 변경되었습니다','success');
-        }},'변경')
+      // ── 닉네임 변경 ──
+      h('div',{style:{marginBottom:'20px'}},
+        h('div',{className:'slabel',style:{marginBottom:'8px'}},'닉네임 변경'),
+        h('div',{style:{display:'flex',gap:'8px'}},
+          h('input',{className:'inp',style:{flex:'1'},placeholder:'새 닉네임',
+            value:state.settingsNickname||'',onInput:e=>setQ({settingsNickname:e.target.value})}),
+          h('button',{className:'cpbtn primary sm',onClick:()=>{
+            if(!(state.settingsNickname||'').trim()){showToast('닉네임을 입력하세요','error');return;}
+            updateUser({...state.currentUser,nickname:state.settingsNickname.trim()});
+            setQ({settingsNickname:''});
+            showToast('닉네임이 변경되었습니다','success');
+          }},'변경')
+        )
       ),
-      h('div',{className:'slabel',style:{marginBottom:'8px'}},'비밀번호 변경'),
-      h('div',{style:{display:'flex',flexDirection:'column',gap:'6px',marginBottom:'12px'}},
-        h('input',{className:'inp',type:'password',placeholder:'현재 비밀번호',
-          value:state.settingsPwForm?.old||'',
-          onInput:e=>setQ({settingsPwForm:{...state.settingsPwForm,old:e.target.value}})}),
-        h('input',{className:'inp',type:'password',placeholder:'새 비밀번호 (8자 이상, 숫자 포함)',
-          value:state.settingsPwForm?.new_||'',
-          onInput:e=>setQ({settingsPwForm:{...state.settingsPwForm,new_:e.target.value}})}),
-        h('input',{className:'inp',type:'password',placeholder:'새 비밀번호 확인',
-          value:state.settingsPwForm?.confirm||'',
-          onInput:e=>setQ({settingsPwForm:{...state.settingsPwForm,confirm:e.target.value}})})
+      // ── 아이디(username) 변경 ──
+      h('div',{style:{marginBottom:'20px',paddingBottom:'20px',borderBottom:'1px solid var(--border)'}},
+        h('div',{className:'slabel',style:{marginBottom:'8px'}},'아이디 변경 (현재: '+u.username+')'),
+        h('div',{style:{fontFamily:'var(--mono)',fontSize:'10px',color:'var(--dim)',marginBottom:'8px'}},'⚠ 아이디 변경 후 재로그인이 필요합니다'),
+        h('div',{style:{display:'flex',gap:'8px'}},
+          h('input',{className:'inp',style:{flex:'1'},placeholder:'새 아이디 (6자 이상)',
+            value:state.settingsNewUsername||'',onInput:e=>setQ({settingsNewUsername:e.target.value})}),
+          h('button',{className:'cpbtn secondary sm',onClick:()=>{
+            const newId = (state.settingsNewUsername||'').trim();
+            if(newId.length<6){showToast('아이디는 6자 이상이어야 합니다','error');return;}
+            if(/^admin$/i.test(newId)){showToast('"admin"은 사용할 수 없습니다','error');return;}
+            const allUsers = ls.get('cp_users',[]);
+            if(allUsers.find(usr=>usr.username.toLowerCase()===newId.toLowerCase()&&usr.username!==u.username)){
+              showToast('이미 사용 중인 아이디입니다','error');return;
+            }
+            const updatedUser = {...u, username:newId};
+            const nextUsers = allUsers.map(usr=>usr.username===u.username?updatedUser:usr);
+            ls.set('cp_users', nextUsers);
+            ls.set('cp_currentUser', {username:newId});
+            setState({currentUser:updatedUser, settingsNewUsername:'', settingsOpen:false});
+            showToast('아이디가 변경되었습니다. 다시 로그인해주세요','success');
+          }},'변경')
+        )
       ),
-      h('button',{className:'cpbtn secondary sm',style:{marginBottom:'24px'},onClick:()=>{
-        const pf = state.settingsPwForm||{};
-        if(pf.old!==u.password){showToast('현재 비밀번호가 틀렸습니다','error');return;}
-        if(!pf.new_||pf.new_.length<8||!/\d/.test(pf.new_)){showToast('새 비밀번호: 8자 이상 숫자 포함','error');return;}
-        if(pf.new_!==pf.confirm){showToast('비밀번호가 일치하지 않습니다','error');return;}
-        updateUser({...u,password:pf.new_});
-        setState({settingsPwForm:{old:'',new_:'',confirm:''}});
-        showToast('비밀번호가 변경되었습니다','success');
-      }},'비밀번호 변경'),
-      h('div',{style:{borderTop:'1px solid var(--pink)',paddingTop:'16px',marginTop:'8px'}},
+      // ── 비밀번호 변경 ──
+      h('div',{style:{marginBottom:'20px',paddingBottom:'20px',borderBottom:'1px solid var(--border)'}},
+        h('div',{className:'slabel',style:{marginBottom:'8px'}},'비밀번호 변경'),
+        h('div',{style:{display:'flex',flexDirection:'column',gap:'6px',marginBottom:'12px'}},
+          h('input',{className:'inp',type:'password',placeholder:'현재 비밀번호',
+            value:state.settingsPwForm?.old||'',
+            onInput:e=>setQ({settingsPwForm:{...state.settingsPwForm,old:e.target.value}})}),
+          h('input',{className:'inp',type:'password',placeholder:'새 비밀번호 (8자 이상, 숫자 포함)',
+            value:state.settingsPwForm?.new_||'',
+            onInput:e=>setQ({settingsPwForm:{...state.settingsPwForm,new_:e.target.value}})}),
+          h('input',{className:'inp',type:'password',placeholder:'새 비밀번호 확인',
+            value:state.settingsPwForm?.confirm||'',
+            onInput:e=>setQ({settingsPwForm:{...state.settingsPwForm,confirm:e.target.value}})})
+        ),
+        h('button',{className:'cpbtn secondary sm',onClick:()=>{
+          const pf = state.settingsPwForm||{};
+          if(pf.old!==u.password){showToast('현재 비밀번호가 틀렸습니다','error');return;}
+          if(!pf.new_||pf.new_.length<8||!/\d/.test(pf.new_)){showToast('새 비밀번호: 8자 이상 숫자 포함','error');return;}
+          if(pf.new_!==pf.confirm){showToast('비밀번호가 일치하지 않습니다','error');return;}
+          updateUser({...u,password:pf.new_});
+          setState({settingsPwForm:{old:'',new_:'',confirm:''}});
+          showToast('비밀번호가 변경되었습니다','success');
+        }},'비밀번호 변경')
+      ),
+      // ── 계정 탈퇴 ──
+      h('div',{style:{borderTop:'1px solid var(--pink)33',paddingTop:'16px'}},
         h('div',{style:{fontFamily:'var(--mono)',fontSize:'11px',color:'var(--pink)',marginBottom:'10px'}},'⚠ 위험 구역'),
         h('div',{style:{fontFamily:'var(--mono)',fontSize:'11px',color:'var(--dim)',marginBottom:'8px'}},'계정 탈퇴 시 모든 데이터가 삭제됩니다. 아이디를 입력하여 확인하세요.'),
         h('input',{className:'inp',style:{marginBottom:'8px'},placeholder:'아이디 입력 후 탈퇴',
@@ -95,6 +124,7 @@ function renderSettingsModal() {
           if(state.deleteConfirmId!==u.username){showToast('아이디가 일치하지 않습니다','error');return;}
           const users = ls.get('cp_users',[]).filter(usr=>usr.username!==u.username);
           ls.set('cp_users',users);
+          ls.set('cp_currentUser',null);
           setState({currentUser:null,modal:null,settingsOpen:false,deleteConfirmId:''});
           showToast('계정이 탈퇴되었습니다','info');
         }},'계정 탈퇴')
@@ -104,16 +134,16 @@ function renderSettingsModal() {
 
   if(tab === 'support') {
     const faqs = [
-      {q:'퀴즈에서 오답이 났는데 정답이 맞는 것 같아요', a:'퀴즈 화면에서 "이의신청" 버튼을 눌러 사유를 제출하세요. 관리자가 검토 후 처리합니다.'},
+      {q:'퀴즈에서 오답이 났는데 정답이 맞는 것 같아요', a:'퀴즈 화면에서 \"이의신청\" 버튼을 눌러 사유를 제출하세요. 관리자가 검토 후 처리합니다.'},
       {q:'코인/XP가 갑자기 사라졌어요', a:'비정상적인 상황이라면 고객센터에 문의해주세요. 활동 로그를 통해 확인 가능합니다.'},
-      {q:'클럽을 어떻게 만드나요?', a:'클럽 탭에서 "클럽 창설" 버튼을 클릭하고 이름과 소개를 입력하세요. 1,000코인이 차감됩니다.'},
+      {q:'클럽을 어떻게 만드나요?', a:'클럽 탭에서 \"클럽 창설\" 버튼을 클릭하고 이름과 소개를 입력하세요. 1,000코인이 차감됩니다.'},
       {q:'오답노트는 어떻게 이용하나요?', a:'에메랄드(7,000XP) 등급 이상부터 이용 가능합니다. 틀린 문제가 자동으로 기록됩니다.'},
       {q:'프로모코드는 어디서 받나요?', a:'공식 이벤트, SNS, 친구 추천 등을 통해 받을 수 있습니다. 상점 > 프로모코드 탭에서 입력하세요.'},
-      {q:'비밀번호를 잊어버렸어요', a:'현재 비밀번호 찾기 기능은 없습니다. 관리자에게 문의해주세요.'},
+      {q:'비밀번호를 잊어버렸어요', a:'설정 > 회원정보 탭에서 비밀번호를 변경하거나 관리자에게 문의해주세요.'},
     ];
     tabContent = h('div',{},
       h('div',{style:{fontFamily:'var(--mono)',fontSize:'12px',color:'var(--cyan)',marginBottom:'14px',letterSpacing:'1px'}},'자주 묻는 질문 (FAQ)'),
-      ...faqs.map((faq,i)=>h('div',{style:{marginBottom:'8px'}},
+      ...faqs.map((faq)=>h('div',{style:{marginBottom:'8px'}},
         h('div',{style:{background:'var(--panel)',border:'1px solid var(--border)',padding:'10px 14px',cursor:'pointer',fontFamily:'var(--mono)',fontSize:'11px',color:'var(--text)'},
           onClick:e=>{
             const next = e.currentTarget.nextSibling;
@@ -124,8 +154,7 @@ function renderSettingsModal() {
       h('div',{style:{marginTop:'20px',borderTop:'1px solid var(--border)',paddingTop:'16px'}},
         h('div',{style:{fontFamily:'var(--mono)',fontSize:'11px',color:'var(--cyan)',marginBottom:'10px'}},'직접 문의'),
         h('select',{className:'inp',style:{marginBottom:'8px'},value:state.supportTicketForm?.type||'bug',
-          onChange:e=>setQ({supportTicketForm:{...state.supportTicketForm,type:e.target.value}}),
-          children:null},
+          onChange:e=>setQ({supportTicketForm:{...state.supportTicketForm,type:e.target.value}})},
           ...['bug','account','payment','other'].map(t=>h('option',{value:t},{bug:'버그 신고',account:'계정 문제',payment:'결제 문의',other:'기타'}[t]))
         ),
         h('textarea',{className:'inp',rows:'3',placeholder:'문의 내용을 입력하세요...',
@@ -134,12 +163,10 @@ function renderSettingsModal() {
           style:{marginBottom:'8px'}}),
         h('button',{className:'cpbtn primary sm',onClick:()=>{
           const ticket = {
-            id:Date.now(),
-            user:u?.username||'anonymous',
+            id:Date.now(), user:u?.username||'anonymous',
             type:state.supportTicketForm?.type||'other',
             content:state.supportTicketForm?.content||'',
-            status:'pending',
-            time:new Date().toISOString()
+            status:'pending', time:new Date().toISOString()
           };
           const tickets = ls.get('cp_tickets',[]);
           ls.set('cp_tickets',[...tickets,ticket]);
@@ -216,7 +243,6 @@ function renderSocial() {
   const requests = u.friendRequests||[];
   const tab = state.socialTab||'friends';
 
-  // 온라인 판단 (5분 기준)
   const isOnline = usr=>{
     if(!usr.lastLogin) return false;
     return (Date.now()-new Date(usr.lastLogin).getTime()) < 5*60*1000;
@@ -274,7 +300,6 @@ function renderSocial() {
               ),
               isFriend ? h('span',{style:{fontFamily:'var(--mono)',fontSize:'9px',color:'var(--green)',border:'1px solid var(--green)',padding:'2px 8px'}},'친구') :
                 h('button',{className:'cpbtn primary sm',onClick:()=>{
-                  // 친구 요청 전송
                   const targetUsers = ls.get('cp_users',[]);
                   const targetIdx = targetUsers.findIndex(t=>t.username===usr.username);
                   if(targetIdx<0) return;
@@ -322,12 +347,49 @@ function renderSocial() {
   );
 }
 
+// ─── 랭크업 오버레이 렌더러 ───
+function createRankUpOverlay(rankInfo) {
+  const rank = rankInfo.rank;
+  const ov = document.createElement('div');
+  ov.className = 'rankup-overlay';
+  ov.style.setProperty('--rcolor', rank.color);
+
+  // 파티클
+  for(let i=0;i<24;i++){
+    const p=document.createElement('div');
+    const angle = (i/24)*360;
+    const dist = 140+Math.random()*60;
+    const tx = Math.cos(angle*Math.PI/180)*dist+'px';
+    const ty = Math.sin(angle*Math.PI/180)*dist+'px';
+    p.style.cssText=`position:absolute;left:50%;top:50%;font-size:${14+Math.random()*12}px;
+      --tx:${tx};--ty:${ty};
+      animation:rankupParticle 2.5s ease-out ${i*0.06}s both;`;
+    p.textContent = rank.icon;
+    ov.appendChild(p);
+  }
+
+  // 카드
+  const card = document.createElement('div');
+  card.className = 'rankup-card';
+  card.style.cssText = `--rcolor:${rank.color};border-color:${rank.color};`;
+
+  card.innerHTML = `
+    <div style="font-size:80px;margin-bottom:16px;animation:titleIconSpin 1.5s ease both;">${rank.icon}</div>
+    <div style="font-family:var(--display);font-size:14px;color:var(--dim);letter-spacing:4px;margin-bottom:6px;">RANK UP!</div>
+    <div style="font-family:var(--display);font-size:36px;font-weight:900;color:${rank.color};
+      text-shadow:0 0 20px ${rank.color};letter-spacing:3px;margin-bottom:8px;">${rank.labelEn}</div>
+    <div style="font-family:var(--mono);font-size:13px;color:var(--text);">${rank.label} 달성!</div>
+    <div style="font-family:var(--mono);font-size:11px;color:var(--dim);margin-top:8px;">${rank.minXp.toLocaleString()} XP</div>
+  `;
+  ov.appendChild(card);
+  return ov;
+}
+
 // ─── MAIN RENDER ───
 function render() {
   const root = document.getElementById('root');
   root.innerHTML = '';
 
-  // 테마 적용
   applyTheme();
 
   if(state.currentUser?.isAdmin) {
@@ -337,7 +399,6 @@ function render() {
 
   const wrap = h('div',{});
 
-  // Scanlines effect
   const scanlines = h('div',{style:{position:'fixed',inset:'0',pointerEvents:'none',zIndex:'9999',
     background:'repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,.10) 2px,rgba(0,0,0,.10) 4px)',
     animation:'flicker 9s infinite'}});
@@ -346,7 +407,6 @@ function render() {
   const glow2 = h('div',{style:{position:'fixed',bottom:'15%',right:'3%',width:'250px',height:'250px',borderRadius:'50%',
     background:'radial-gradient(circle,#ff003c05 0%,transparent 70%)',pointerEvents:'none',zIndex:'0'}});
 
-  // 수리 모드
   if(state.repair && !state.currentUser?.isAdmin) {
     wrap.appendChild(h('div',{style:{position:'fixed',inset:'0',background:'rgba(1,3,8,.97)',zIndex:'8000',
       display:'flex',alignItems:'center',justifyContent:'center',flexDirection:'column',gap:'20px'}},
@@ -359,7 +419,6 @@ function render() {
     return;
   }
 
-  // 비상 오버레이
   if(state.emergency && !state.currentUser?.isAdmin) {
     wrap.appendChild(h('div',{style:{position:'fixed',inset:'0',background:'rgba(0,0,0,.9)',zIndex:'8000',
       display:'flex',alignItems:'center',justifyContent:'center',flexDirection:'column',gap:'20px'}},
@@ -368,7 +427,6 @@ function render() {
     ));
   }
 
-  // 토스트
   if(state.toast) {
     const colors={success:'var(--green)',error:'var(--pink)',info:'var(--cyan)',warning:'var(--yellow)'};
     const c=colors[state.toast.type]||colors.info;
@@ -390,24 +448,16 @@ function render() {
   else if(state.screen==='clubs')     appDiv.appendChild(renderClubs());
   else if(state.screen==='social')    appDiv.appendChild(renderSocial());
 
-  // 모달
   if(state.modal==='login')        appDiv.appendChild(renderLoginModal());
   else if(state.modal==='signup')  appDiv.appendChild(renderSignupModal());
   else if(state.modal==='submitProblem'&&state.currentUser) appDiv.appendChild(renderSubmitProblemModal());
 
-  // 설정 모달
   if(state.settingsOpen) appDiv.appendChild(renderSettingsModal());
 
-  // 랭크업 애니메이션
+  // 랭크업 애니메이션 (화려한 버전)
   if(state.rankUpInfo?.show) {
-    const rankUpOverlay = h('div',{className:'rankup-overlay'},
-      h('div',{className:'rankup-card'},
-        h('div',{style:{fontSize:'60px',marginBottom:'20px'}},state.rankUpInfo.rank.icon),
-        h('div',{style:{fontFamily:'var(--display)',fontSize:'32px',color:'var(--cyan)',marginBottom:'10px'}},'RANK UP!'),
-        h('div',{style:{fontFamily:'var(--mono)',fontSize:'18px',color:'var(--text)'}},state.rankUpInfo.rank.label)
-      )
-    );
-    wrap.appendChild(rankUpOverlay);
+    const rankUpEl = createRankUpOverlay(state.rankUpInfo);
+    wrap.appendChild(rankUpEl);
   }
 
   wrap.appendChild(scanlines);
@@ -416,11 +466,6 @@ function render() {
   wrap.appendChild(appDiv);
   root.appendChild(wrap);
 }
-
-// ─── 로그인 시 처리 (03_state.js의 updateUser에 hook) ───
-// 기존 updateUser를 래핑하여 lastLogin 업데이트
-const _origUpdateUser = updateUser;
-// updateUser는 03_state.js에서 정의됨 - 아래에서 lastLogin/휴면 처리를 render()에서 수행
 
 // ─── SEED DEFAULT ACCOUNT ───
 (function() {
@@ -449,13 +494,11 @@ const _origUpdateUser = updateUser;
     const users = ls.get('cp_users', []);
     const fresh = users.find(u => u.username === savedUser.username);
     if(fresh && !fresh.banned) {
-      // 휴면 복귀 보상 체크
       const rewarded = checkDormantReward(fresh);
       if(rewarded !== fresh) {
         const updated = users.map(u=>u.username===fresh.username?rewarded:u);
         ls.set('cp_users', updated);
       }
-      // lastLogin 업데이트
       const withLogin = {...(rewarded||fresh), lastLogin:new Date().toISOString()};
       const updated2 = users.map(u=>u.username===fresh.username?withLogin:u);
       ls.set('cp_users', updated2);
