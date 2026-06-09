@@ -35,13 +35,24 @@ function renderSettingsModal() {
           applyTheme();
         }}, state.darkMode ? '🌙 다크모드 ON' : '☀️ 라이트모드 ON'),
       ),
-      h('div',{className:'slabel',style:{marginBottom:'10px'}},'글씨 크기'),
-      h('div',{style:{display:'flex',gap:'8px'}},
-        ['sm','md','lg'].map(sz=>h('button',{
-          className:'cpbtn '+(state.fontSize===sz?'primary':'ghost')+' sm',
-          onClick:()=>{setState({fontSize:sz});ls.set('bh_fontSize',sz);applyTheme();}
-        }, {sm:'소 (작게)',md:'중 (기본)',lg:'대 (크게)'}[sz]))
-      )
+      h('div',{className:'slabel',style:{marginBottom:'10px'}},'글씨 크기: '+(state.fontSizePercent||100)+'%'),
+      h('div',{style:{display:'flex',alignItems:'center',gap:'12px',marginBottom:'18px'}},
+        h('input',{
+          type:'range',
+          min:'50',
+          max:'150',
+          value:state.fontSizePercent||100,
+          style:{flex:1,height:'6px',cursor:'pointer'},
+          onInput:e=>{
+            const pct = parseInt(e.target.value);
+            setState({fontSizePercent:pct});
+            ls.set('bh_fontSizePercent',pct);
+            applyTheme();
+          }
+        }),
+        h('span',{style:{fontFamily:'var(--mono)',fontSize:'12px',color:'var(--cyan)',minWidth:'40px'}},(state.fontSizePercent||100)+'%')
+      ),
+      h('div',{style:{fontFamily:'var(--mono)',fontSize:'10px',color:'var(--dim)'}},'슬라이더를 드래그하여 글씨 크기를 조정하세요 (50~150%)')
     );
   }
 
@@ -218,10 +229,10 @@ function renderSocial() {
     : [];
 
   return h('div',{style:{padding:'28px 0'}},
-    h('div',{className:'sec-title',style:{marginBottom:'14px'}},'// 소셜'),
+    h('div',{className:'sec-title',style:{marginBottom:'14px'}},'// '+t.social),
     h('div',{style:{display:'flex',gap:'6px',marginBottom:'18px',flexWrap:'wrap'}},
-      ['friends','search','requests'].map(t=>h('button',{className:'nbtn'+(tab===t?' on':''),onClick:()=>setState({socialTab:t})},
-        {friends:'👥 친구 목록',search:'🔍 유저 검색',requests:'📬 친구 요청'}[t]+(t==='requests'&&requests.length?' ('+requests.length+')':'')
+      ['friends','search','requests'].map(tabId=>h('button',{className:'nbtn'+(tab===tabId?' on':''),onClick:()=>setState({socialTab:tabId})},
+        {friends:'👥 '+t.friends,search:'🔍 '+t.search,requests:'📬 '+t.requests}[tabId]+(tabId==='requests'&&requests.length?' ('+requests.length+')':'')
       ))
     ),
     tab==='friends' ? h('div',{},
@@ -447,4 +458,3 @@ const _origUpdateUser = updateUser;
 
 applyTheme();
 render();
-
