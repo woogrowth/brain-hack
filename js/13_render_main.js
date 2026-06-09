@@ -435,13 +435,25 @@ function render() {
   const appDiv = h('div',{className:'app',style:{position:'relative',zIndex:'1'}});
   appDiv.appendChild(renderNav());
 
-  // 어드민 로그인 시 상단에 관리자 패널 진입 버튼 표시
-  if(state.currentUser?.isAdmin) {
+  // 관리자 패널 진입 버튼 표시
+  // - isAdmin: 관리자 계정 → 패널 진입 가능
+  // - equipped.title === 'admin_title': 관리자 칭호 보유 → 버튼 표시, 클릭 시 isAdmin 아니면 안내
+  const u = state.currentUser;
+  const hasAdminTitle = u && !u.isAdmin && u.equipped?.title === 'admin_title';
+  if(u?.isAdmin) {
     appDiv.appendChild(h('div',{style:{background:'#1a000a',border:'1px solid #ff003c44',
       borderLeft:'none',borderRight:'none',padding:'8px 0',marginBottom:'8px',
       display:'flex',alignItems:'center',justifyContent:'center',gap:'12px'}},
       h('span',{style:{fontFamily:'var(--mono)',fontSize:'10px',color:'var(--pink)',letterSpacing:'2px'}},'⚙ 관리자 계정으로 접속 중'),
       h('button',{className:'cpbtn danger sm',onClick:()=>setState({screen:'admin_panel',adminTab:'problems'})},'관리자 패널 →')
+    ));
+  } else if(hasAdminTitle) {
+    appDiv.appendChild(h('div',{style:{background:'#1a0a00',border:'1px solid #ff880044',
+      borderLeft:'none',borderRight:'none',padding:'8px 0',marginBottom:'8px',
+      display:'flex',alignItems:'center',justifyContent:'center',gap:'12px'}},
+      h('span',{style:{fontFamily:'var(--mono)',fontSize:'10px',color:'#ff8800',letterSpacing:'2px'}},'🔰 관리자 칭호 보유'),
+      h('button',{className:'cpbtn ghost sm',style:{borderColor:'#ff8800',color:'#ff8800'},
+        onClick:()=>showToast('관리자 패널은 관리자 계정만 접근 가능합니다','error')},'관리자 패널 (권한 없음)')
     ));
   }
 
