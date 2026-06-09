@@ -162,25 +162,4 @@ const COIN_PACKAGES = [
   { name:"프리미엄",coins:10000, bonusCoins:2000, price:"₩14,900",label:"최고가성비" },
 ];
 
-// ── 헬퍼: 랭크 ──
-function getRank(xp) {
-  for(let i = RANKS.length - 1; i >= 0; i--) {
-    if(xp >= RANKS[i].minXp) return RANKS[i];
-  }
-  return RANKS[0];
-}
-function getNextRank(xp) {
-  for(let i = 0; i < RANKS.length; i++) {
-    if(RANKS[i].minXp > xp) return RANKS[i];
-  }
-  return null;
-}
-function checkAchs(user) {
-  const earned = user.achievements || [];
-  return ACHIEVEMENTS.filter(a => !earned.includes(a.id) && a.cond(user)).map(a => a.id);
-}
-function filterBad(text) {
-  let t = text;
-  BANNED_WORDS.forEach(w => { t = t.replace(new RegExp(w, 'gi'), '***'); });
-  return t;
-}
+
