@@ -73,10 +73,6 @@ brainhack/
 - 💬 **고객센터**: FAQ 6개, 문의 제출
 - 💾 **백업/복구**: JSON 다운로드/업로드
 
-## 🔑 기본 계정
-- 관리자: `admin` / `admin1234!`
-- 기본 유저: `woogrowth` / `woogrowth1`
-
 ## 📝 Claude로 수정하는 방법
 
 각 파일은 독립적인 기능 담당:
