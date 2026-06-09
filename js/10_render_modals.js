@@ -58,24 +58,24 @@ function renderSignupModal() {
   const up = (k,v) => setState({signupData:{...state.signupData,[k]:v}});
 
   const validateStep = ()=>{
-    const d = state.signupData;
+    const sd = state.signupData;
     const e={};
-    if(s===0&&!d.gender) e.gender='성별을 선택해주세요';
-    if(s===0&&!d.job) e.job='직업을 선택해주세요';
-    if(s===1&&!d.country) e.country='국가를 선택해주세요';
+    if(s===0&&!sd.gender) e.gender='성별을 선택해주세요';
+    if(s===0&&!sd.job) e.job='직업을 선택해주세요';
+    if(s===1&&!sd.country) e.country='국가를 선택해주세요';
     if(s===2){
-      if(d.username.length<6) e.username='아이디는 6자 이상';
-      else if(/^admin$/i.test(d.username)) e.username='"admin"은 사용할 수 없는 아이디입니다';
+      if(sd.username.length<6) e.username='아이디는 6자 이상';
+      else if(/^admin$/i.test(sd.username)) e.username='"admin"은 사용할 수 없는 아이디입니다';
       else {
         const existUsers = ls.get('cp_users',[]);
-        if(existUsers.find(u=>u.username.toLowerCase()===d.username.toLowerCase())) e.username='이미 사용 중인 아이디입니다';
+        if(existUsers.find(u=>u.username.toLowerCase()===sd.username.toLowerCase())) e.username='이미 사용 중인 아이디입니다';
       }
-      if(d.nickname.length<2) e.nickname='닉네임은 2자 이상';
-      if(!/\d/.test(d.password)||d.password.length<8) e.password='8자 이상, 숫자 포함';
-      if(d.password!==d.pwConfirm) e.pwConfirm='비밀번호 불일치';
+      if(sd.nickname.length<2) e.nickname='닉네임은 2자 이상';
+      if(!/\d/.test(sd.password)||sd.password.length<8) e.password='8자 이상, 숫자 포함';
+      if(sd.password!==sd.pwConfirm) e.pwConfirm='비밀번호 불일치';
     }
-    if(s===3&&!d.agreePrivacy) e.agreePrivacy='필수 동의 항목입니다';
-    if(s===4&&!d.agreeThird) e.agreeThird='필수 동의 항목입니다';
+    if(s===3&&!sd.agreePrivacy) e.agreePrivacy='필수 동의 항목입니다';
+    if(s===4&&!sd.agreeThird) e.agreeThird='필수 동의 항목입니다';
     setState({signupErrors:e});
     return Object.keys(e).length===0;
   };
@@ -240,169 +240,7 @@ function renderSignupModal() {
   );
 
   return h('div',{className:'overlay'},
-    h('div',{className:'modal-box',style:{maxWidth:'500px',width:'100%'}},
-      h('div',{className:'mhdr'},
-        h('button',{className:'xbtn',onClick:()=>setState({modal:'login'})},'←'),
-        h('span',{className:'mtag'},'// 회원가입'),
-        h('span',{style:{fontFamily:'var(--mono)',fontSize:'10px',color:'var(--dim)'}},SIGNUP_STEPS[s])
-      ),
-      h('div',{style:{padding:'22px 24px 28px',maxHeight:'80vh',overflowY:'auto'}},
-        progressBar(s,6),
-        content,
-        h('button',{className:'cpbtn primary',style:{width:'100%',marginTop:'20px',padding:'13px'},onClick:next},
-          s===5?'가입 완료 →':'다음 →')
-      )
-    )
-  );
-}
-
-  const next = ()=>{
-    if(!validateStep()) return;
-    if(s<5) setState({signupStep:s+1});
-    else finishSignup();
-  };
-
-  const finishSignup = ()=>{
-    const d = state.signupData;
-    const users = ls.get('cp_users',[]);
-    // admin 금지
-    if(/^admin$/i.test(d.username)){setState({signupErrors:{username:'"admin"은 사용할 수 없는 아이디입니다'},signupStep:2});return;}
-    if(users.find(u=>u.username.toLowerCase()===d.username.toLowerCase())){setState({signupErrors:{username:'이미 사용 중인 아이디입니다'},signupStep:2});return;}
-    const job = JOBS.find(j=>j.id===d.job);
-    const country = COUNTRIES.find(c=>c.code===d.country);
-    // 성별에 따른 캐릭터 이모지 결정
-    const gender = d.gender || 'M';
-    const charKey = gender==='F' ? 'charF' : 'charM';
-    const baseChar = job?.[charKey] || job?.char || '🧑';
-    const charEmoji = applySkinTone(baseChar, d.race);
-    const user = {
-      username:d.username, password:d.password, nickname:d.nickname,
-      job:d.job, country:d.country, gender, race:d.race || 'prefer_not_to_say',
-      flag:country?.flag||'🌍', char:charEmoji,
-      score:0, xp:0, coins:100, solved:[], submitted:0,
-      achievements:[], inventory:[], equipped:{frame:'',hat:'',bg:'',acc:'',title:''},
-      streak:0, maxStreak:0, attendanceDates:[], attendanceStreak:0,
-      friends:[], blocked:[], friendRequests:[],
-      pushEnabled:d.agreePush, warnings:0, banned:false, banUntil:null,
-      wrongAnswers:[], usedPromos:[], heartVoted:{},
-      createdAt:new Date().toISOString(), lastLogin:new Date().toISOString(),
-      isAdmin:false, clubsCreated:0
-    };
-    ls.set('cp_users',[...users,user]);
-    setState({currentUser:user, modal:null, attended:false});
-    showToast('🎉 회원가입 완료! 코인 100개 지급!','success');
-    addActivityLog('signup',{username:user.username,job:d.job,gender});
-  };
-  let content;
-  if(s===0) content = h('div',{},
-    // 성별 선택
-    h('div',{className:'slabel',style:{marginBottom:'8px'}},'성별을 선택하세요'),
-    h('div',{style:{display:'flex',gap:'10px',marginBottom:'18px'}},
-      h('button',{
-        style:{flex:1,padding:'12px',cursor:'pointer',fontFamily:'var(--body)',fontSize:'14px',
-          background:d.gender==='M'?'#00f5ff18':'var(--panel)',
-          border:'1px solid '+(d.gender==='M'?'var(--cyan)':'var(--border)'),
-          color:d.gender==='M'?'var(--cyan)':'var(--text)'},
-        onClick:()=>up('gender','M')},'👦 남성'),
-      h('button',{
-        style:{flex:1,padding:'12px',cursor:'pointer',fontFamily:'var(--body)',fontSize:'14px',
-          background:d.gender==='F'?'#ff00aa18':'var(--panel)',
-          border:'1px solid '+(d.gender==='F'?'var(--pink)':'var(--border)'),
-          color:d.gender==='F'?'var(--pink)':'var(--text)'},
-        onClick:()=>up('gender','F')},'👧 여성')
-    ),
-    h('div',{className:'slabel',style:{marginBottom:'8px'}},'인종을 선택하세요'),
-    h('select',{className:'inp',style:{marginBottom:'18px'},value:d.race||'prefer_not_to_say',
-      onChange:e=>{
-        const val = e.target.value;
-        setState({signupData:{...state.signupData, race: val}});
-      }},
-      h('option',{value:'prefer_not_to_say'},'선택 안 함'),
-      h('option',{value:'asian'},'아시아인'),
-      h('option',{value:'black'},'흑인'),
-      h('option',{value:'white'},'백인'),
-      h('option',{value:'hispanic_latino'},'히스패닉/라틴계'),
-      h('option',{value:'middle_eastern'},'중동계'),
-      h('option',{value:'indigenous'},'원주민'),
-      h('option',{value:'mixed'},'혼혈/다인종'),
-      h('option',{value:'other'},'기타')
-    ),
-    // 직업 선택
-    h('div',{className:'slabel',style:{marginBottom:'8px'}},'직업을 선택하세요 (픽셀 캐릭터 지급)'),
-    h('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:'8px'}},
-      ...JOBS.map(j=>{
-        const charKey = d.gender==='F' ? 'charF' : 'charM';
-        const charEmoji = j[charKey] || j.char || '🧑';
-        return h('button',{
-          style:{background:d.job===j.id?'#00f5ff18':'var(--panel)',border:'1px solid '+(d.job===j.id?'var(--cyan)':'var(--border)'),
-            color:d.job===j.id?'var(--cyan)':'var(--text)',padding:'14px 8px',cursor:'pointer',fontFamily:'var(--body)',fontSize:'13px',
-            display:'flex',flexDirection:'column',alignItems:'center',gap:'5px'},
-          onClick:()=>up('job',j.id)},
-          h('span',{style:{fontSize:'28px'}},charEmoji),
-          h('span',{style:{fontSize:'11px',fontFamily:'var(--mono)'}},j.icon),
-          j.label
-        );
-      })
-    ),
-    errs.job?h('div',{className:'errmsg'},'⚠ '+errs.job):null,
-    !d.gender?h('div',{className:'errmsg',style:{marginTop:'8px'}},'⚠ 성별을 먼저 선택해주세요'):null
-  );
-  else if(s===1) content = h('div',{},
-    h('div',{className:'slabel'},'국가를 선택하세요 (프로필 국기 표시)'),
-    h('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'6px',marginTop:'12px',maxHeight:'300px',overflowY:'auto'}},
-      ...COUNTRIES.map(c=>h('button',{
-        style:{background:d.country===c.code?'#00f5ff18':'var(--panel)',border:'1px solid '+(d.country===c.code?'var(--cyan)':'var(--border)'),
-          color:d.country===c.code?'var(--cyan)':'var(--text)',padding:'10px 12px',cursor:'pointer',fontFamily:'var(--body)',fontSize:'13px',
-          display:'flex',alignItems:'center',gap:'8px',textAlign:'left'},
-        onClick:()=>up('country',c.code)},
-        h('span',{style:{fontSize:'20px'}},c.flag),c.name
-      ))
-    )
-  );
-  else if(s===2) content = h('div',{},
-    field('닉네임 (2자 이상)',errs.nickname||'',h('input',{className:'inp',placeholder:'표시될 닉네임',value:d.nickname,onInput:e=>up('nickname',e.target.value)})),
-    field('아이디 (6자 이상)',errs.username||'',h('input',{className:'inp',placeholder:'brain_user01',value:d.username,onInput:e=>up('username',e.target.value)})),
-    field('비밀번호 (8자 이상, 숫자 포함)',errs.password||'',h('div',{style:{position:'relative'}},
-      h('input',{className:'inp',style:{paddingRight:'40px'},type:state.showPwSignup?'text':'password',placeholder:'••••••••',value:d.password,onInput:e=>up('password',e.target.value)}),
-      h('button',{style:{position:'absolute',right:'10px',top:'50%',transform:'translateY(-50%)',background:'transparent',border:'none',cursor:'pointer',fontSize:'16px',color:'var(--dim)',lineHeight:'1'},
-        onClick:()=>setState({showPwSignup:!state.showPwSignup})},state.showPwSignup?'🙈':'👁️')
-    )),
-    field('비밀번호 확인',errs.pwConfirm||'',h('div',{style:{position:'relative'}},
-      h('input',{className:'inp',style:{paddingRight:'40px'},type:state.showPwSignup2?'text':'password',placeholder:'••••••••',value:d.pwConfirm,onInput:e=>up('pwConfirm',e.target.value)}),
-      h('button',{style:{position:'absolute',right:'10px',top:'50%',transform:'translateY(-50%)',background:'transparent',border:'none',cursor:'pointer',fontSize:'16px',color:'var(--dim)',lineHeight:'1'},
-        onClick:()=>setState({showPwSignup2:!state.showPwSignup2})},state.showPwSignup2?'🙈':'👁️')
-    ))
-  );
-  else if(s===3) content = h('div',{},
-    h('div',{className:'slabel'},'개인정보 처리 방침'),
-    h('div',{className:'consent-box'},
-      h('p',{},'수집 항목: 아이디, 비밀번호(암호화), 닉네임, 직업, 국가, 퀴즈 기록'),
-      h('p',{},'수집 목적: 서비스 제공, 랭킹 관리, 맞춤 문제 추천'),
-      h('p',{},'보유 기간: 회원 탈퇴 시까지')
-    ),
-    consentRow('[필수] 개인정보 처리 방침에 동의합니다',d.agreePrivacy,v=>up('agreePrivacy',v)),
-    errs.agreePrivacy?h('div',{className:'errmsg'},'⚠ '+errs.agreePrivacy):null
-  );
-  else if(s===4) content = h('div',{},
-    h('div',{className:'slabel'},'제3자 정보 제공 동의'),
-    h('div',{className:'consent-box'},
-      h('p',{},'제공 대상: 서비스 운영 파트너사'),
-      h('p',{},'제공 항목: 닉네임, 점수, 활동 통계 (익명화)'),
-      h('p',{},'제공 목적: 랭킹 서비스, 통계 분석'),
-      h('p',{},'보유 기간: 제공일로부터 1년')
-    ),
-    consentRow('[필수] 제3자 정보 제공에 동의합니다',d.agreeThird,v=>up('agreeThird',v)),
-    errs.agreeThird?h('div',{className:'errmsg'},'⚠ '+errs.agreeThird):null
-  );
-  else content = h('div',{style:{textAlign:'center',padding:'14px 0 20px'}},
-    h('div',{style:{fontSize:'44px',marginBottom:'10px'}},'🔔'),
-    h('div',{style:{fontFamily:'var(--display)',fontSize:'15px',color:'var(--cyan)',marginBottom:'8px'}},'푸시 알림'),
-    h('div',{style:{fontFamily:'var(--mono)',fontSize:'11px',color:'var(--dim)',lineHeight:'1.7'}},'새 문제 알림, 랭킹 변동, 이벤트 소식을 받아보시겠어요?'),
-    consentRow('[선택] 푸시 알림을 받겠습니다',d.agreePush,v=>up('agreePush',v))
-  );
-
-  return h('div',{className:'overlay'},
-    h('div',{className:'modal-box',style:{maxWidth:'500px',width:'100%'}},
+    h('div',{className:'modal-box',style:{maxWidth:'500px',width:'100%'},onClick:e=>e.stopPropagation()},
       h('div',{className:'mhdr'},
         h('button',{className:'xbtn',onClick:()=>setState({modal:'login'})},'←'),
         h('span',{className:'mtag'},'// 회원가입'),
@@ -417,4 +255,3 @@ function renderSignupModal() {
     )
   );
 }
-
