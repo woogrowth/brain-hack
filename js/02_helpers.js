@@ -21,4 +21,3 @@ const filterBad = t => {
   for(const w of BANNED_WORDS) s = s.replace(new RegExp(w, 'gi'), '***');
   return s;
 };
-
