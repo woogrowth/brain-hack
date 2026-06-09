@@ -13,6 +13,7 @@ function h(tag, attrs, ...children) {
       else if(k==='rows') el.rows=v;
       else if(k==='data-t') el.dataset.t=v;
       else if(k==='href') el.href=v;
+      else if(k==='children') { /* skip */ }
       else el.setAttribute(k,v);
     }
   }
@@ -31,7 +32,7 @@ function xpBar(xp, lang) {
   return h('div',{style:{marginTop:'6px'}},
     h('div',{style:{display:'flex',justifyContent:'space-between',fontFamily:'var(--mono)',fontSize:'10px',color:'var(--dim)',marginBottom:'4px'}},
       h('span',{style:{color:rank.color}},rank.icon+' '+(lang==='ko'?rank.label:rank.labelEn)),
-      h('span',{},xp.toLocaleString()+' XP '+(next?'→ '+next.minXp.toLocaleString():''))
+      h('span',{},xp.toLocaleString()+' XP '+(next?'→ '+next.minXp.toLocaleString():'MAX'))
     ),
     h('div',{style:{height:'4px',background:'#0a1a20',position:'relative'}},
       h('div',{style:{height:'100%',width:pct+'%',background:rank.color,boxShadow:'0 0 8px '+rank.color,transition:'width .8s'}})
@@ -84,7 +85,6 @@ function consentRow(label, checked, onChange) {
   );
 }
 
-// Mini stat card for admin/profile
 function statCard(value, label, color) {
   color = color || 'var(--cyan)';
   return h('div',{style:{background:'#060e18',border:'1px solid '+color+'33',padding:'14px 10px',textAlign:'center',flex:'1',minWidth:'80px'}},
@@ -97,41 +97,47 @@ function statCard(value, label, color) {
 function applySkinTone(emoji, race) {
   if (!emoji) return '🧑';
   const tones = {
-    'asian': '\u{1F3FC}',           // 🏼 Light-Medium
-    'white': '\u{1F3FB}',           // 🏻 Light
-    'hispanic_latino': '\u{1F3FD}', // 🏽 Medium
-    'middle_eastern': '\u{1F3FE}',  // 🏾 Medium-Dark
-    'mixed': '\u{1F3FD}',
-    'black': '\u{1F3FF}',           // 🏿 Dark
-    'indigenous': '\u{1F3FE}',
-    'other': '\u{1F3FD}',
-    'prefer_not_to_say': ''
+    'asian':            '\u{1F3FC}',
+    'white':            '\u{1F3FB}',
+    'hispanic_latino':  '\u{1F3FD}',
+    'middle_eastern':   '\u{1F3FE}',
+    'mixed':            '\u{1F3FD}',
+    'black':            '\u{1F3FF}',
+    'indigenous':       '\u{1F3FE}',
+    'other':            '\u{1F3FD}',
+    'prefer_not_to_say':''
   };
   const tone = tones[race] || '';
   if (!tone) return emoji;
-  
-  // Only apply to base human emojis (not already toned or complex sequences)
-  const baseHumans = ['👦','👧','👨','👩','🧑','👮','🕵️','💂','👷','🤴','👸','👳','👲','🧕','🧔','👱','👨‍🎓','👩‍🎓','👨‍🏫','👩‍🏫','🧑‍💻','👩‍💻','👶','🧒','🧓','👴','👵'];
-  // Check if it's a simple human emoji or starts with one
-  for (const bh of baseHumans) {
-    if (emoji.startsWith(bh)) {
-      // If it's a complex emoji with ZWJ, we need to insert tone after the first part
-      if (emoji.includes('\u200D')) {
-        const parts = emoji.split('\u200D');
-        return parts[0] + tone + '\u200D' + parts.slice(1).join('\u200D');
-      }
-      // Avoid double-toning if already toned
-      if (/\u{1F3FB}|\u{1F3FC}|\u{1F3FD}|\u{1F3FE}|\u{1F3FF}/u.test(emoji)) return emoji;
-      return bh + tone + emoji.slice(bh.length);
-    }
+  // 이미 스킨톤이 적용된 경우 스킵
+  if (/\u{1F3FB}|\u{1F3FC}|\u{1F3FD}|\u{1F3FE}|\u{1F3FF}/u.test(emoji)) return emoji;
+  // ZWJ 시퀀스 처리
+  if (emoji.includes('\u200D')) {
+    const parts = emoji.split('\u200D');
+    return parts[0] + tone + '\u200D' + parts.slice(1).join('\u200D');
+  }
+  // 단순 이모지에 스킨톤 추가 (2글자 이상 복합 이모지는 건드리지 않음)
+  const cp = emoji.codePointAt(0);
+  // 사람 관련 코드포인트 범위
+  if (
+    (cp >= 0x1F466 && cp <= 0x1F469) || // 👦👧👨👩
+    cp === 0x1F9D1 || // 🧑
+    cp === 0x1F471 || // 👱
+    cp === 0x1F474 || cp === 0x1F475 || // 👴👵
+    cp === 0x1F476 || // 👶
+    cp === 0x1F9D2 || cp === 0x1F9D3 || // 🧒🧓
+    cp === 0x1F46E || // 👮
+    cp === 0x1F477 || // 👷
+    cp === 0x1F9B8 || cp === 0x1F9B9  // 🦸🦹
+  ) {
+    const chars = [...emoji];
+    return chars[0] + tone + (chars.length > 1 ? chars.slice(1).join('') : '');
   }
   return emoji;
 }
 
-// CSS bar chart helper
 function barChart(data, maxVal, height) {
   height = height || 60;
-  const barW = Math.floor(96 / data.length);
   return h('div',{style:{display:'flex',alignItems:'flex-end',gap:'3px',height:height+'px',padding:'0 2px'}},
     ...data.map(({label,value,color})=>{
       const pct = maxVal > 0 ? Math.max(4, Math.round((value/maxVal)*100)) : 4;
@@ -144,5 +150,95 @@ function barChart(data, maxVal, height) {
     })
   );
 }
+
+// ── 칭호 이펙트 렌더러 ──
+function renderTitleEffect(titleId) {
+  const eff = TITLE_EFFECTS[titleId];
+  if(!eff) return null;
+  const item = SHOP_ITEMS.find(it=>it.id===titleId);
+  const name = item ? item.name : titleId;
+
+  const container = document.createElement('div');
+  container.style.cssText = `
+    position:fixed;inset:0;z-index:10000;pointer-events:none;
+    display:flex;align-items:center;justify-content:center;
+    background:rgba(0,0,0,0.75);
+  `;
+
+  // 파티클 생성
+  for(let i=0;i<18;i++){
+    const p=document.createElement('div');
+    const angle = (i/18)*360;
+    const dist = 120 + Math.random()*80;
+    const size = 16 + Math.random()*16;
+    p.style.cssText=`
+      position:absolute;font-size:${size}px;
+      left:50%;top:50%;
+      transform:translate(-50%,-50%) rotate(${angle}deg) translateY(-${dist}px);
+      opacity:0;animation:titleParticle 3.5s ease-out ${i*0.08}s forwards;
+    `;
+    p.textContent = eff.particles;
+    container.appendChild(p);
+  }
+
+  // 메인 카드
+  const card = document.createElement('div');
+  card.style.cssText = `
+    background:var(--panel);
+    border:3px solid ${eff.color};
+    padding:40px 60px;text-align:center;
+    box-shadow:0 0 60px ${eff.shadow}88, 0 0 120px ${eff.shadow}44;
+    animation:titleCardIn 3.5s ease forwards;
+    position:relative;overflow:hidden;
+  `;
+
+  const iconEl = document.createElement('div');
+  iconEl.style.cssText=`font-size:64px;margin-bottom:14px;animation:titleIconSpin 3.5s ease forwards;`;
+  iconEl.textContent = item?.icon||'✨';
+  card.appendChild(iconEl);
+
+  const titleEl = document.createElement('div');
+  titleEl.style.cssText=`font-family:var(--display);font-size:28px;font-weight:900;color:${eff.color};
+    text-shadow:0 0 20px ${eff.shadow};letter-spacing:4px;margin-bottom:8px;`;
+  titleEl.textContent = name;
+  card.appendChild(titleEl);
+
+  const sub = document.createElement('div');
+  sub.style.cssText=`font-family:var(--mono);font-size:12px;color:var(--dim);letter-spacing:3px;`;
+  sub.textContent = '칭호 장착 완료';
+  card.appendChild(sub);
+
+  container.appendChild(card);
+  document.body.appendChild(container);
+  setTimeout(()=>container.remove(), 3600);
+}
+
+// ── 칭호 이펙트 CSS 주입 ──
+(function injectTitleEffectCSS(){
+  if(document.getElementById('title-effect-styles')) return;
+  const style = document.createElement('style');
+  style.id='title-effect-styles';
+  style.textContent=`
+    @keyframes titleParticle {
+      0%   { opacity:0; transform:translate(-50%,-50%) rotate(var(--r,0deg)) translateY(0); }
+      20%  { opacity:1; }
+      100% { opacity:0; transform:translate(-50%,-50%) rotate(var(--r,0deg)) translateY(-200px) scale(.5); }
+    }
+    @keyframes titleCardIn {
+      0%   { opacity:0; transform:scale(.6) translateY(30px); }
+      15%  { opacity:1; transform:scale(1.08) translateY(-4px); }
+      25%  { transform:scale(1) translateY(0); }
+      80%  { opacity:1; transform:scale(1); }
+      100% { opacity:0; transform:scale(1.1) translateY(-20px); }
+    }
+    @keyframes titleIconSpin {
+      0%   { transform:scale(.5) rotate(-180deg); }
+      20%  { transform:scale(1.3) rotate(20deg); }
+      35%  { transform:scale(1) rotate(0deg); }
+      100% { transform:scale(1) rotate(0deg); }
+    }
+  `;
+  document.head.appendChild(style);
+})();
 
 // ═══ SCREENS ═══
