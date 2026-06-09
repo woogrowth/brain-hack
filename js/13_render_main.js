@@ -388,14 +388,14 @@ function render() {
 
   applyTheme();
 
-  if(state.currentUser?.isAdmin) {
+  // 어드민 패널 화면 (admin_panel 탭일 때만 어드민 전용 UI)
+  if(state.currentUser?.isAdmin && state.screen === 'admin_panel') {
     root.appendChild(renderAdmin());
     return;
   }
 
   const wrap = document.createElement('div');
 
-  // 스캔라인 효과
   const scanlines = h('div',{style:{position:'fixed',inset:'0',pointerEvents:'none',zIndex:'9999',
     background:'repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,.10) 2px,rgba(0,0,0,.10) 4px)',
     animation:'flicker 9s infinite'}});
@@ -404,7 +404,6 @@ function render() {
   const glow2 = h('div',{style:{position:'fixed',bottom:'15%',right:'3%',width:'250px',height:'250px',borderRadius:'50%',
     background:'radial-gradient(circle,#ff003c05 0%,transparent 70%)',pointerEvents:'none',zIndex:'0'}});
 
-  // 수리 모드
   if(state.repair && !state.currentUser?.isAdmin) {
     wrap.appendChild(h('div',{style:{position:'fixed',inset:'0',background:'rgba(1,3,8,.97)',zIndex:'8000',
       display:'flex',alignItems:'center',justifyContent:'center',flexDirection:'column',gap:'20px'}},
@@ -417,7 +416,6 @@ function render() {
     return;
   }
 
-  // 비상 오버레이
   if(state.emergency && !state.currentUser?.isAdmin) {
     wrap.appendChild(h('div',{style:{position:'fixed',inset:'0',background:'rgba(0,0,0,.9)',zIndex:'8000',
       display:'flex',alignItems:'center',justifyContent:'center',flexDirection:'column',gap:'20px'}},
@@ -426,7 +424,6 @@ function render() {
     ));
   }
 
-  // 토스트
   if(state.toast) {
     const colors={success:'var(--green)',error:'var(--pink)',info:'var(--cyan)',warning:'var(--yellow)'};
     const c=colors[state.toast.type]||colors.info;
@@ -436,31 +433,35 @@ function render() {
   }
 
   const appDiv = h('div',{className:'app',style:{position:'relative',zIndex:'1'}});
-
-  // ✅ renderNav() 반드시 먼저 추가
   appDiv.appendChild(renderNav());
 
-  // ✅ 올바른 screen 이름 + 올바른 함수명으로 매핑
+  // 어드민 로그인 시 상단에 관리자 패널 진입 버튼 표시
+  if(state.currentUser?.isAdmin) {
+    appDiv.appendChild(h('div',{style:{background:'#1a000a',border:'1px solid #ff003c44',
+      borderLeft:'none',borderRight:'none',padding:'8px 0',marginBottom:'8px',
+      display:'flex',alignItems:'center',justifyContent:'center',gap:'12px'}},
+      h('span',{style:{fontFamily:'var(--mono)',fontSize:'10px',color:'var(--pink)',letterSpacing:'2px'}},'⚙ 관리자 계정으로 접속 중'),
+      h('button',{className:'cpbtn danger sm',onClick:()=>setState({screen:'admin_panel',adminTab:'problems'})},'관리자 패널 →')
+    ));
+  }
+
   if(state.screen === 'home')             appDiv.appendChild(renderHome());
-  else if(state.screen === 'quizMode')    appDiv.appendChild(renderQuizModeSelect());  // renderQuizMode() X
+  else if(state.screen === 'quizMode')    appDiv.appendChild(renderQuizModeSelect());
   else if(state.screen === 'quiz')        appDiv.appendChild(renderQuiz());
-  else if(state.screen === 'leaderboard') appDiv.appendChild(renderLeaderboard());     // 'rank' X, renderRank() X
+  else if(state.screen === 'leaderboard') appDiv.appendChild(renderLeaderboard());
   else if(state.screen === 'shop')        appDiv.appendChild(renderShop());
   else if(state.screen === 'chat')        appDiv.appendChild(renderChat());
   else if(state.screen === 'profile')     appDiv.appendChild(renderProfile());
-  else if(state.screen === 'clubs')       appDiv.appendChild(renderClubs());           // 'club' X, renderClub() X
+  else if(state.screen === 'clubs')       appDiv.appendChild(renderClubs());
   else if(state.screen === 'social')      appDiv.appendChild(renderSocial());
   else                                    appDiv.appendChild(renderHome());
 
-  // ✅ 모달 - 실제 존재하는 함수명만 사용
   if(state.modal === 'login')             appDiv.appendChild(renderLoginModal());
   else if(state.modal === 'signup')       appDiv.appendChild(renderSignupModal());
   else if(state.modal === 'submitProblem' && state.currentUser) appDiv.appendChild(renderSubmitProblemModal());
 
-  // 설정 모달
   if(state.settingsOpen) appDiv.appendChild(renderSettingsModal());
 
-  // 랭크업 애니메이션
   if(state.rankUpInfo?.show) {
     wrap.appendChild(createRankUpOverlay(state.rankUpInfo));
   }
@@ -472,7 +473,7 @@ function render() {
   root.appendChild(wrap);
 }
 
-// ─── 기본 계정 시딩 (woogrowth) ───
+// ─── 기본 계정 시딩 ───
 (function() {
   const users = ls.get('cp_users', []);
   if(!users.find(u => u.username === 'woogrowth')) {
