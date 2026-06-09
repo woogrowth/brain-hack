@@ -393,57 +393,94 @@ function render() {
     return;
   }
 
-  if(state.screen === 'quiz') {
-    root.appendChild(renderQuiz());
-  } else if(state.screen === 'quizMode') {
-    root.appendChild(renderQuizMode());
-  } else if(state.screen === 'rank') {
-    root.appendChild(renderRank());
-  } else if(state.screen === 'shop') {
-    root.appendChild(renderShop());
-  } else if(state.screen === 'chat') {
-    root.appendChild(renderChat());
-  } else if(state.screen === 'profile') {
-    root.appendChild(renderProfile());
-  } else if(state.screen === 'social') {
-    root.appendChild(renderSocial());
-  } else if(state.screen === 'club') {
-    root.appendChild(renderClub());
-  } else {
-    root.appendChild(renderHome());
+  const wrap = document.createElement('div');
+
+  // 스캔라인 효과
+  const scanlines = h('div',{style:{position:'fixed',inset:'0',pointerEvents:'none',zIndex:'9999',
+    background:'repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,.10) 2px,rgba(0,0,0,.10) 4px)',
+    animation:'flicker 9s infinite'}});
+  const glow1 = h('div',{style:{position:'fixed',top:'20%',left:'5%',width:'350px',height:'350px',borderRadius:'50%',
+    background:'radial-gradient(circle,#00f5ff06 0%,transparent 70%)',pointerEvents:'none',zIndex:'0'}});
+  const glow2 = h('div',{style:{position:'fixed',bottom:'15%',right:'3%',width:'250px',height:'250px',borderRadius:'50%',
+    background:'radial-gradient(circle,#ff003c05 0%,transparent 70%)',pointerEvents:'none',zIndex:'0'}});
+
+  // 수리 모드
+  if(state.repair && !state.currentUser?.isAdmin) {
+    wrap.appendChild(h('div',{style:{position:'fixed',inset:'0',background:'rgba(1,3,8,.97)',zIndex:'8000',
+      display:'flex',alignItems:'center',justifyContent:'center',flexDirection:'column',gap:'20px'}},
+      h('div',{style:{fontSize:'64px'}},'🔧'),
+      h('div',{style:{fontFamily:'var(--display)',fontSize:'28px',color:'#ff8800',letterSpacing:'2px'}},'수리 중입니다'),
+      h('div',{style:{fontFamily:'var(--mono)',fontSize:'12px',color:'var(--dim)',textAlign:'center',lineHeight:'2'}},'서비스 점검 중입니다. 잠시 후 다시 이용해주세요.')
+    ));
+    wrap.appendChild(scanlines);
+    root.appendChild(wrap);
+    return;
   }
 
-  if(state.modal === 'login') root.appendChild(renderLoginModal());
-  else if(state.modal === 'signup') root.appendChild(renderSignupModal());
-  else if(state.modal === 'problem_add') root.appendChild(renderProblemAddModal());
-  else if(state.modal === 'item_detail') root.appendChild(renderItemDetailModal());
-
-  if(state.settingsOpen) root.appendChild(renderSettingsModal());
-
-  if(state.rankUpInfo && state.rankUpInfo.show) {
-    root.appendChild(createRankUpOverlay(state.rankUpInfo));
+  // 비상 오버레이
+  if(state.emergency && !state.currentUser?.isAdmin) {
+    wrap.appendChild(h('div',{style:{position:'fixed',inset:'0',background:'rgba(0,0,0,.9)',zIndex:'8000',
+      display:'flex',alignItems:'center',justifyContent:'center',flexDirection:'column',gap:'20px'}},
+      h('div',{style:{fontFamily:'var(--display)',fontSize:'32px',color:'var(--pink)'}},'⚠ 서비스 점검 중'),
+      h('div',{style:{fontFamily:'var(--mono)',fontSize:'14px',color:'var(--dim)'}},'관리자에 의해 일시 중지되었습니다.')
+    ));
   }
+
+  // 토스트
+  if(state.toast) {
+    const colors={success:'var(--green)',error:'var(--pink)',info:'var(--cyan)',warning:'var(--yellow)'};
+    const c=colors[state.toast.type]||colors.info;
+    wrap.appendChild(h('div',{style:{position:'fixed',bottom:'24px',right:'24px',zIndex:'9000',
+      background:'var(--bg2)',border:'1px solid '+c,padding:'12px 20px',fontFamily:'var(--mono)',fontSize:'12px',color:c,
+      boxShadow:'0 0 20px '+c+'44',animation:'slideIn .25s ease',maxWidth:'320px',letterSpacing:'1px'}},state.toast.msg));
+  }
+
+  const appDiv = h('div',{className:'app',style:{position:'relative',zIndex:'1'}});
+
+  // ✅ renderNav() 반드시 먼저 추가
+  appDiv.appendChild(renderNav());
+
+  // ✅ 올바른 screen 이름 + 올바른 함수명으로 매핑
+  if(state.screen === 'home')             appDiv.appendChild(renderHome());
+  else if(state.screen === 'quizMode')    appDiv.appendChild(renderQuizModeSelect());  // renderQuizMode() X
+  else if(state.screen === 'quiz')        appDiv.appendChild(renderQuiz());
+  else if(state.screen === 'leaderboard') appDiv.appendChild(renderLeaderboard());     // 'rank' X, renderRank() X
+  else if(state.screen === 'shop')        appDiv.appendChild(renderShop());
+  else if(state.screen === 'chat')        appDiv.appendChild(renderChat());
+  else if(state.screen === 'profile')     appDiv.appendChild(renderProfile());
+  else if(state.screen === 'clubs')       appDiv.appendChild(renderClubs());           // 'club' X, renderClub() X
+  else if(state.screen === 'social')      appDiv.appendChild(renderSocial());
+  else                                    appDiv.appendChild(renderHome());
+
+  // ✅ 모달 - 실제 존재하는 함수명만 사용
+  if(state.modal === 'login')             appDiv.appendChild(renderLoginModal());
+  else if(state.modal === 'signup')       appDiv.appendChild(renderSignupModal());
+  else if(state.modal === 'submitProblem' && state.currentUser) appDiv.appendChild(renderSubmitProblemModal());
+
+  // 설정 모달
+  if(state.settingsOpen) appDiv.appendChild(renderSettingsModal());
+
+  // 랭크업 애니메이션
+  if(state.rankUpInfo?.show) {
+    wrap.appendChild(createRankUpOverlay(state.rankUpInfo));
+  }
+
+  wrap.appendChild(scanlines);
+  wrap.appendChild(glow1);
+  wrap.appendChild(glow2);
+  wrap.appendChild(appDiv);
+  root.appendChild(wrap);
 }
 
-// ─── 초기 데이터 로드 ───
+// ─── 기본 계정 시딩 (woogrowth) ───
 (function() {
   const users = ls.get('cp_users', []);
-  if(users.length === 0) {
-    ls.set('cp_users', [{
-      username:'admin', password:'password123', nickname:'관리자',
-      job:'freelancer', country:'KR', flag:'🇰🇷', char:'🤖',
-      score:0, xp:100000, coins:100000, solved:[], achievements:[],
-      inventory:[], equipped:{frame:'',hat:'',bg:'',acc:'',title:''},
-      streak:0, maxStreak:0, attendanceDates:[], attendanceStreak:0,
-      friends:[], blocked:[], friendRequests:[],
-      wrongAnswers:[], usedPromos:[], heartVoted:{},
-      pushEnabled:false, warnings:0, banned:false, banUntil:null,
-      createdAt:new Date().toISOString(), lastLogin:null,
-      isAdmin:true, clubsCreated:0
-    },{
-      username:'user01', password:'password123', nickname:'두뇌풀기',
-      job:'student_univ', country:'KR', flag:'🇰🇷', char:'🧑‍🎓',
-      score:0, xp:0, coins:100, solved:[], achievements:[],
+  if(!users.find(u => u.username === 'woogrowth')) {
+    ls.set('cp_users', [...users, {
+      username:'woogrowth', password:'woogrowth1',
+      nickname:'woogrowth', job:'etc', country:'KR', gender:'M',
+      flag:'🇰🇷', char:'🧑', score:0, xp:0, coins:100,
+      solved:[], submitted:0, achievements:[],
       inventory:[], equipped:{frame:'',hat:'',bg:'',acc:'',title:''},
       streak:0, maxStreak:0, attendanceDates:[], attendanceStreak:0,
       friends:[], blocked:[], friendRequests:[],
