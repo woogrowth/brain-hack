@@ -3,7 +3,7 @@ function renderLoginModal() {
     const uname = state.loginForm.username.trim();
     const pw = state.loginForm.password;
     if(uname==='admin'&&pw==='admin1234!') {
-      const adminUser={username:'admin',nickname:'관리자',isAdmin:true,xp:999999,coins:999999,score:0,solved:[],achievements:[],job:'etc',country:'KR',flag:'🇰🇷',char:'👾',createdAt:new Date().toISOString(),inventory:[],equipped:{frame:'',hat:'',bg:'',acc:'',title:'admin_title'}};
+      const adminUser={username:'admin',nickname:'관리자',isAdmin:true,xp:999999,coins:999999,score:0,solved:[],achievements:[],job:'etc',country:'KR',flag:'🇰🇷',char:'👾',createdAt:new Date().toISOString()};
       Object.assign(state,{currentUser:adminUser,modal:null,loginForm:{username:'',password:''},loginError:'',toast:{msg:'👾 관리자 접속!',type:'success'}});
       if(toastTimer)clearTimeout(toastTimer);
       toastTimer=setTimeout(()=>setState({toast:null}),3000);
@@ -13,6 +13,7 @@ function renderLoginModal() {
     const user = users.find(u=>u.username===uname&&u.password===pw);
     if(!user){setState({loginError:'아이디 또는 비밀번호가 틀렸습니다'});return;}
     if(user.banned){setState({loginError:'계정이 정지되었습니다'});return;}
+    // 휴면 복귀 보상 체크
     const rewarded = checkDormantReward(user);
     const withLogin = {...(rewarded||user), lastLogin:new Date().toISOString()};
     const allU = ls.get('cp_users',[]);
@@ -41,7 +42,7 @@ function renderLoginModal() {
         )),
         state.loginError?h('div',{className:'errmsg',style:{marginBottom:'12px'}},'⚠ '+state.loginError):null,
         h('button',{className:'cpbtn primary',style:{width:'100%',padding:'12px'},onClick:handle},'로그인 →'),
-        h('button',{className:'cpbtn ghost',style:{width:'100%',padding:'10px',marginTop:'8px'},onClick:()=>setState({modal:'signup',signupStep:0,signupData:{job:'',country:'KR',gender:'M',race:'prefer_not_to_say',username:'',password:'',pwConfirm:'',nickname:'',agreePrivacy:false,agreeThird:false,agreePush:false},signupErrors:{}})},'계정 없음 → 회원가입'),
+        h('button',{className:'cpbtn ghost',style:{width:'100%',padding:'10px',marginTop:'8px'},onClick:()=>setState({modal:'signup',signupStep:0,signupData:{job:'',country:'KR',gender:'M',race:'prefer_not_to_say',username:'',password:'',pwConfirm:'',nickname:'',agreePrivacy:false,agreeThird:false,agreePush:false}})},'계정 없음 → 회원가입'),
         null
       )
     )
@@ -52,30 +53,28 @@ const SIGNUP_STEPS = ['직업 선택','국가 선택','계정 설정','개인정
 function renderSignupModal() {
   const s = state.signupStep;
   const d = state.signupData;
-  const errs = state.signupErrors || {};
-
-  // 인종 변경 시 선택된 직업 이모지도 즉시 갱신을 위해 state로 관리
   const up = (k,v) => setState({signupData:{...state.signupData,[k]:v}});
+  const errs = state.signupErrors;
 
   const validateStep = ()=>{
-    const sd = state.signupData;
+    const d = state.signupData;
     const e={};
-    if(s===0&&!sd.gender) e.gender='성별을 선택해주세요';
-    if(s===0&&!sd.job) e.job='직업을 선택해주세요';
-    if(s===1&&!sd.country) e.country='국가를 선택해주세요';
+    if(s===0&&!d.gender) e.gender='성별을 선택해주세요';
+    if(s===0&&!d.job) e.job='직업을 선택해주세요';
+    if(s===1&&!d.country) e.country='국가를 선택해주세요';
     if(s===2){
-      if(sd.username.length<6) e.username='아이디는 6자 이상';
-      else if(/^admin$/i.test(sd.username)) e.username='"admin"은 사용할 수 없는 아이디입니다';
+      if(d.username.length<6) e.username='아이디는 6자 이상';
+      else if(/^admin$/i.test(d.username)) e.username='"admin"은 사용할 수 없는 아이디입니다';
       else {
         const existUsers = ls.get('cp_users',[]);
-        if(existUsers.find(u=>u.username.toLowerCase()===sd.username.toLowerCase())) e.username='이미 사용 중인 아이디입니다';
+        if(existUsers.find(u=>u.username.toLowerCase()===d.username.toLowerCase())) e.username='이미 사용 중인 아이디입니다';
       }
-      if(sd.nickname.length<2) e.nickname='닉네임은 2자 이상';
-      if(!/\d/.test(sd.password)||sd.password.length<8) e.password='8자 이상, 숫자 포함';
-      if(sd.password!==sd.pwConfirm) e.pwConfirm='비밀번호 불일치';
+      if(d.nickname.length<2) e.nickname='닉네임은 2자 이상';
+      if(!/\d/.test(d.password)||d.password.length<8) e.password='8자 이상, 숫자 포함';
+      if(d.password!==d.pwConfirm) e.pwConfirm='비밀번호 불일치';
     }
-    if(s===3&&!sd.agreePrivacy) e.agreePrivacy='필수 동의 항목입니다';
-    if(s===4&&!sd.agreeThird) e.agreeThird='필수 동의 항목입니다';
+    if(s===3&&!d.agreePrivacy) e.agreePrivacy='필수 동의 항목입니다';
+    if(s===4&&!d.agreeThird) e.agreeThird='필수 동의 항목입니다';
     setState({signupErrors:e});
     return Object.keys(e).length===0;
   };
@@ -89,10 +88,12 @@ function renderSignupModal() {
   const finishSignup = ()=>{
     const d = state.signupData;
     const users = ls.get('cp_users',[]);
+    // admin 금지
     if(/^admin$/i.test(d.username)){setState({signupErrors:{username:'"admin"은 사용할 수 없는 아이디입니다'},signupStep:2});return;}
     if(users.find(u=>u.username.toLowerCase()===d.username.toLowerCase())){setState({signupErrors:{username:'이미 사용 중인 아이디입니다'},signupStep:2});return;}
     const job = JOBS.find(j=>j.id===d.job);
     const country = COUNTRIES.find(c=>c.code===d.country);
+    // 성별에 따른 캐릭터 이모지 결정
     const gender = d.gender || 'M';
     const charKey = gender==='F' ? 'charF' : 'charM';
     const baseChar = job?.[charKey] || job?.char || '🧑';
@@ -115,76 +116,60 @@ function renderSignupModal() {
     showToast('🎉 회원가입 완료! 코인 100개 지급!','success');
     addActivityLog('signup',{username:user.username,job:d.job,gender});
   };
-
   let content;
-  if(s===0) {
-    // 현재 선택된 직업/성별/인종 기반 미리보기 이모지
-    const job = JOBS.find(j=>j.id===d.job);
-    const charKey = d.gender==='F' ? 'charF' : 'charM';
-    const previewBase = job ? (job[charKey]||job.char||'🧑') : '🧑';
-    const previewEmoji = applySkinTone(previewBase, d.race||'prefer_not_to_say');
-
-    content = h('div',{},
-      // 성별 선택
-      h('div',{className:'slabel',style:{marginBottom:'8px'}},'성별을 선택하세요'),
-      h('div',{style:{display:'flex',gap:'10px',marginBottom:'18px'}},
-        h('button',{
-          style:{flex:1,padding:'12px',cursor:'pointer',fontFamily:'var(--body)',fontSize:'14px',
-            background:d.gender==='M'?'#00f5ff18':'var(--panel)',
-            border:'1px solid '+(d.gender==='M'?'var(--cyan)':'var(--border)'),
-            color:d.gender==='M'?'var(--cyan)':'var(--text)'},
-          onClick:()=>up('gender','M')},'👦 남성'),
-        h('button',{
-          style:{flex:1,padding:'12px',cursor:'pointer',fontFamily:'var(--body)',fontSize:'14px',
-            background:d.gender==='F'?'#ff00aa18':'var(--panel)',
-            border:'1px solid '+(d.gender==='F'?'var(--pink)':'var(--border)'),
-            color:d.gender==='F'?'var(--pink)':'var(--text)'},
-          onClick:()=>up('gender','F')},'👧 여성')
-      ),
-      // 인종 선택 - setState로 즉시 렌더링
-      h('div',{className:'slabel',style:{marginBottom:'6px'}},'인종을 선택하세요 (이모지 피부색 적용)'),
-      h('div',{style:{display:'flex',alignItems:'center',gap:'10px',marginBottom:'6px'}},
-        h('select',{
-          className:'inp',style:{flex:1},
-          value:d.race||'prefer_not_to_say',
-          onChange:e=>up('race', e.target.value)
-        },
-          h('option',{value:'prefer_not_to_say'},'선택 안 함'),
-          h('option',{value:'asian'},'아시아인'),
-          h('option',{value:'black'},'흑인'),
-          h('option',{value:'white'},'백인'),
-          h('option',{value:'hispanic_latino'},'히스패닉/라틴계'),
-          h('option',{value:'middle_eastern'},'중동계'),
-          h('option',{value:'indigenous'},'원주민'),
-          h('option',{value:'mixed'},'혼혈/다인종'),
-          h('option',{value:'other'},'기타')
-        ),
-        h('div',{style:{fontSize:'32px',minWidth:'40px',textAlign:'center',border:'1px solid var(--border)',padding:'4px 8px',background:'var(--panel)'}},previewEmoji)
-      ),
-      h('div',{style:{fontFamily:'var(--mono)',fontSize:'10px',color:'var(--dim)',marginBottom:'16px'}},
-        '↑ 직업 선택 시 해당 피부색이 적용된 캐릭터로 지급됩니다'),
-      // 직업 선택
-      h('div',{className:'slabel',style:{marginBottom:'8px'}},'직업을 선택하세요 (픽셀 캐릭터 지급)'),
-      h('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:'8px'}},
-        ...JOBS.map(j=>{
-          const cKey = d.gender==='F' ? 'charF' : 'charM';
-          const base = j[cKey] || j.char || '🧑';
-          const charEmoji = applySkinTone(base, d.race||'prefer_not_to_say');
-          return h('button',{
-            style:{background:d.job===j.id?'#00f5ff18':'var(--panel)',border:'1px solid '+(d.job===j.id?'var(--cyan)':'var(--border)'),
-              color:d.job===j.id?'var(--cyan)':'var(--text)',padding:'14px 8px',cursor:'pointer',fontFamily:'var(--body)',fontSize:'13px',
-              display:'flex',flexDirection:'column',alignItems:'center',gap:'5px'},
-            onClick:()=>up('job',j.id)},
-            h('span',{style:{fontSize:'28px'}},charEmoji),
-            h('span',{style:{fontSize:'11px',fontFamily:'var(--mono)'}},j.icon),
-            j.label
-          );
-        })
-      ),
-      errs.job?h('div',{className:'errmsg',style:{marginTop:'8px'}},'⚠ '+errs.job):null,
-      !d.gender?h('div',{className:'errmsg',style:{marginTop:'8px'}},'⚠ 성별을 먼저 선택해주세요'):null
-    );
-  }
+  if(s===0) content = h('div',{},
+    // 성별 선택
+    h('div',{className:'slabel',style:{marginBottom:'8px'}},'성별을 선택하세요'),
+    h('div',{style:{display:'flex',gap:'10px',marginBottom:'18px'}},
+      h('button',{
+        style:{flex:1,padding:'12px',cursor:'pointer',fontFamily:'var(--body)',fontSize:'14px',
+          background:d.gender==='M'?'#00f5ff18':'var(--panel)',
+          border:'1px solid '+(d.gender==='M'?'var(--cyan)':'var(--border)'),
+          color:d.gender==='M'?'var(--cyan)':'var(--text)'},
+        onClick:()=>up('gender','M')},'👦 남성'),
+      h('button',{
+        style:{flex:1,padding:'12px',cursor:'pointer',fontFamily:'var(--body)',fontSize:'14px',
+          background:d.gender==='F'?'#ff00aa18':'var(--panel)',
+          border:'1px solid '+(d.gender==='F'?'var(--pink)':'var(--border)'),
+          color:d.gender==='F'?'var(--pink)':'var(--text)'},
+        onClick:()=>up('gender','F')},'👧 여성')
+    ),
+    h('div',{className:'slabel',style:{marginBottom:'8px'}},'인종을 선택하세요'),
+    h('select',{className:'inp',style:{marginBottom:'18px'},value:d.race||'prefer_not_to_say',
+      onChange:e=>{
+        const val = e.target.value;
+        setState({signupData:{...state.signupData, race: val}});
+      }},
+      h('option',{value:'prefer_not_to_say'},'선택 안 함'),
+      h('option',{value:'asian'},'아시아인'),
+      h('option',{value:'black'},'흑인'),
+      h('option',{value:'white'},'백인'),
+      h('option',{value:'hispanic_latino'},'히스패닉/라틴계'),
+      h('option',{value:'middle_eastern'},'중동계'),
+      h('option',{value:'indigenous'},'원주민'),
+      h('option',{value:'mixed'},'혼혈/다인종'),
+      h('option',{value:'other'},'기타')
+    ),
+    // 직업 선택
+    h('div',{className:'slabel',style:{marginBottom:'8px'}},'직업을 선택하세요 (픽셀 캐릭터 지급)'),
+    h('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:'8px'}},
+      ...JOBS.map(j=>{
+        const charKey = d.gender==='F' ? 'charF' : 'charM';
+        const charEmoji = j[charKey] || j.char || '🧑';
+        return h('button',{
+          style:{background:d.job===j.id?'#00f5ff18':'var(--panel)',border:'1px solid '+(d.job===j.id?'var(--cyan)':'var(--border)'),
+            color:d.job===j.id?'var(--cyan)':'var(--text)',padding:'14px 8px',cursor:'pointer',fontFamily:'var(--body)',fontSize:'13px',
+            display:'flex',flexDirection:'column',alignItems:'center',gap:'5px'},
+          onClick:()=>up('job',j.id)},
+          h('span',{style:{fontSize:'28px'}},charEmoji),
+          h('span',{style:{fontSize:'11px',fontFamily:'var(--mono)'}},j.icon),
+          j.label
+        );
+      })
+    ),
+    errs.job?h('div',{className:'errmsg'},'⚠ '+errs.job):null,
+    !d.gender?h('div',{className:'errmsg',style:{marginTop:'8px'}},'⚠ 성별을 먼저 선택해주세요'):null
+  );
   else if(s===1) content = h('div',{},
     h('div',{className:'slabel'},'국가를 선택하세요 (프로필 국기 표시)'),
     h('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'6px',marginTop:'12px',maxHeight:'300px',overflowY:'auto'}},
@@ -198,15 +183,15 @@ function renderSignupModal() {
     )
   );
   else if(s===2) content = h('div',{},
-    field('닉네임 (2자 이상)',errs.nickname||'',h('input',{className:'inp',placeholder:'표시될 닉네임',value:d.nickname,onInput:e=>up('nickname',e.target.value)})),
-    field('아이디 (6자 이상)',errs.username||'',h('input',{className:'inp',placeholder:'brain_user01',value:d.username,onInput:e=>up('username',e.target.value)})),
+    field('닉네임 (2자 이상)',errs.nickname||'',h('input',{className:'inp',placeholder:'표시될 닉네임',value:d.nickname,onInput:e=>setQ({signupData:{...state.signupData,nickname:e.target.value}})})),
+    field('아이디 (6자 이상)',errs.username||'',h('input',{className:'inp',placeholder:'brain_user01',value:d.username,onInput:e=>setQ({signupData:{...state.signupData,username:e.target.value}})})),
     field('비밀번호 (8자 이상, 숫자 포함)',errs.password||'',h('div',{style:{position:'relative'}},
-      h('input',{className:'inp',style:{paddingRight:'40px'},type:state.showPwSignup?'text':'password',placeholder:'••••••••',value:d.password,onInput:e=>up('password',e.target.value)}),
+      h('input',{className:'inp',style:{paddingRight:'40px'},type:state.showPwSignup?'text':'password',placeholder:'••••••••',value:d.password,onInput:e=>setQ({signupData:{...state.signupData,password:e.target.value}})}),
       h('button',{style:{position:'absolute',right:'10px',top:'50%',transform:'translateY(-50%)',background:'transparent',border:'none',cursor:'pointer',fontSize:'16px',color:'var(--dim)',lineHeight:'1'},
         onClick:()=>setState({showPwSignup:!state.showPwSignup})},state.showPwSignup?'🙈':'👁️')
     )),
     field('비밀번호 확인',errs.pwConfirm||'',h('div',{style:{position:'relative'}},
-      h('input',{className:'inp',style:{paddingRight:'40px'},type:state.showPwSignup2?'text':'password',placeholder:'••••••••',value:d.pwConfirm,onInput:e=>up('pwConfirm',e.target.value)}),
+      h('input',{className:'inp',style:{paddingRight:'40px'},type:state.showPwSignup2?'text':'password',placeholder:'••••••••',value:d.pwConfirm,onInput:e=>setQ({signupData:{...state.signupData,pwConfirm:e.target.value}})}),
       h('button',{style:{position:'absolute',right:'10px',top:'50%',transform:'translateY(-50%)',background:'transparent',border:'none',cursor:'pointer',fontSize:'16px',color:'var(--dim)',lineHeight:'1'},
         onClick:()=>setState({showPwSignup2:!state.showPwSignup2})},state.showPwSignup2?'🙈':'👁️')
     ))
@@ -240,7 +225,7 @@ function renderSignupModal() {
   );
 
   return h('div',{className:'overlay'},
-    h('div',{className:'modal-box',style:{maxWidth:'500px',width:'100%'},onClick:e=>e.stopPropagation()},
+    h('div',{className:'modal-box',style:{maxWidth:'500px',width:'100%'}},
       h('div',{className:'mhdr'},
         h('button',{className:'xbtn',onClick:()=>setState({modal:'login'})},'←'),
         h('span',{className:'mtag'},'// 회원가입'),
