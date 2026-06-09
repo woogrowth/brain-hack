@@ -1,11 +1,11 @@
 function renderLeaderboard() {
   const users = ls.get('cp_users',[]).filter(u=>!u.isAdmin);
-    const sorted = [...users].sort((a,b)=>
+  const sorted = [...users].sort((a,b)=>
     state.lbTab==='score'?(b.score-a.score):state.lbTab==='xp'?(b.xp||0)-(a.xp||0):(b.solved||[]).length-(a.solved||[]).length
   ).slice(0,20);
-    // 관리자 최상단 고정 (XP 무한 표시용)
-    const admins = ls.get('cp_users',[]).filter(u=>u.isAdmin || (u.equipped?.title === 'admin_title'));
-    const finalSorted = [...admins, ...sorted.filter(u=>!admins.find(a=>a.username===u.username))];
+  // 관리자 권한 유저(admin_title 보유) 최상단 고정
+  const adminUsers = ls.get('cp_users',[]).filter(u=>u.isAdmin || (u.equipped?.title === 'admin_title'));
+  const finalSorted = [...adminUsers, ...sorted.filter(u=>!adminUsers.find(a=>a.username===u.username))];
   const medals = ['①','②','③'];
   return h('div',{className:'lb-wrap'},
     h('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'14px'}},
@@ -19,19 +19,30 @@ function renderLeaderboard() {
     sorted.length===0?h('div',{style:{fontFamily:'var(--mono)',fontSize:'12px',color:'var(--dim)',textAlign:'center',padding:'40px'}},'아직 플레이어가 없습니다'):null,
     ...finalSorted.map((u,i)=>{
       const isAdmin = u.isAdmin || (u.equipped?.title === 'admin_title');
-      const rank = getRank(u.xp||0);
       const job = JOBS.find(j=>j.id===u.job);
+      const equippedTitle = SHOP_ITEMS.find(it=>it.id===u.equipped?.title);
+      const titleEff = TITLE_EFFECTS[u.equipped?.title||''];
       return h('div',{className:'lbrow'+(u.username===state.currentUser?.username?' me':'')},
         h('span',{style:{fontFamily:'var(--display)',fontSize:'14px',color:'var(--yellow)',minWidth:'28px'}},i<3?medals[i]:(i+1)+'.'),
         h('span',{style:{fontSize:'18px',marginRight:'4px'}},u.char||'🧑'),
         h('span',{style:{fontSize:'14px',marginRight:'4px'}},u.flag||'🌍'),
         h('div',{style:{flex:'1'}},
-          h('div',{style:{fontWeight:'700',fontSize:'14px'}},u.nickname||u.username),
+          h('div',{style:{fontWeight:'700',fontSize:'14px',display:'flex',alignItems:'center',gap:'6px'}},
+            u.nickname||u.username,
+            equippedTitle && u.equipped?.title ?
+              h('span',{style:{fontFamily:'var(--mono)',fontSize:'8px',
+                color: titleEff ? titleEff.color : 'var(--yellow)',
+                border:'1px solid '+(titleEff ? titleEff.color+'44' : 'var(--yellow)44'),
+                padding:'0 5px',background:(titleEff ? titleEff.color : 'var(--yellow)')+'11'}},
+                equippedTitle.name) : null
+          ),
           h('div',{style:{fontFamily:'var(--mono)',fontSize:'9px',color:'var(--dim)'}},job?.label||'')
         ),
         rankBadge(u.xp||0, true),
         h('span',{style:{fontFamily:'var(--mono)',fontSize:'13px',color:isAdmin?'var(--pink)':'var(--green)',marginLeft:'10px'}},
-          state.lbTab==='score'?(u.score||0)+' pts':state.lbTab==='xp'?(isAdmin?'∞':(u.xp||0).toLocaleString())+' XP':(u.solved||[]).length+'문제')
+          state.lbTab==='score'?(u.score||0)+' pts':
+          state.lbTab==='xp'?(isAdmin?'∞':(u.xp||0).toLocaleString())+' XP':
+          (u.solved||[]).length+'문제')
       );
     })
   );
@@ -48,64 +59,80 @@ function renderShop() {
     ...mainTabs.map(mt=>h('button',{className:'nbtn'+(mainTab===mt.id?' on':''),onClick:()=>setState({shopMainTab:mt.id})},mt.label))
   );
 
-  // ── 아이템 탭 ──
   if(mainTab==='items') {
     const tabs = ['all','frame','hat','bg','acc','title','potion'];
     const tabLabels = {all:'전체',frame:'프레임',hat:'모자',bg:'배경',acc:'액세서리',title:'칭호',potion:'⚗️ 포션'};
     const rarityColor = {common:'var(--dim)',rare:'var(--cyan)',epic:'var(--yellow)',legendary:'var(--pink)'};
     const owned = state.currentUser.inventory||[];
+    const equipped = state.currentUser.equipped||{};
+    const isAdminUser = (equipped.title === 'admin_title') || state.currentUser.isAdmin;
+
+    // 관리자 전용 아이템 및 admin_title 숨김
     const filtered = ((state.shopTab==='all')?SHOP_ITEMS:SHOP_ITEMS.filter(i=>i.type===state.shopTab))
-      .filter(it => it.id !== 'admin_title'); // 상점에서 관리자 칭호 숨김
+      .filter(it => !it.adminOnly);
+
     return h('div',{style:{padding:'28px 0'}},
       h('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'16px'}},
         h('span',{className:'sec-title'},'// ITEM SHOP'),
-        h('span',{style:{fontFamily:'var(--mono)',fontSize:'12px',color:'var(--yellow)'}},'💰 '+(state.currentUser.coins||0).toLocaleString()+' COINS')
+        h('span',{style:{fontFamily:'var(--mono)',fontSize:'12px',color:'var(--yellow)'}},'💰 '+(state.currentUser.coins||0).toLocaleString()+' COINS'+(isAdminUser?' (ADMIN: 전품목 무료)':''))
       ),
       tabBar,
       h('div',{style:{display:'flex',gap:'6px',marginBottom:'18px',flexWrap:'wrap'}},
         ...tabs.map(t2=>h('button',{className:'nbtn'+(state.shopTab===t2?' on':''),onClick:()=>setState({shopTab:t2})},tabLabels[t2]))
       ),
-      h('div',{style:{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(170px,1fr))',gap:'12px'}},
+      h('div',{style:{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(160px,1fr))',gap:'12px'}},
         ...filtered.map(item=>{
           const isOwned = owned.includes(item.id);
           const isPotion = item.type==='potion';
-          const isEquipped = isPotion ? state.currentUser.activePotion===item.id : (state.currentUser.equipped||{})[item.type]===item.id;
+          const isEquipped = isPotion
+            ? state.currentUser.activePotion===item.id
+            : (equipped)[item.type]===item.id;
+          const titleEff = TITLE_EFFECTS[item.id];
+          const borderCol = isEquipped
+            ? (titleEff ? titleEff.color : 'var(--cyan)')
+            : isOwned ? '#00ff9f44' : 'var(--border)';
+
           const buy = ()=>{
-            const isAdminTitle = (state.currentUser.equipped||{}).title === 'admin_title';
-            if(!isAdminTitle && (state.currentUser.coins||0)<item.price){showToast('코인이 부족합니다!','error');return;}
+            if(!isAdminUser && (state.currentUser.coins||0)<item.price){showToast('코인이 부족합니다!','error');return;}
             if(isOwned&&!isPotion){showToast('이미 보유 중입니다.','info');return;}
-            const newCoins = isAdminTitle ? (state.currentUser.coins||0) : (state.currentUser.coins||0)-item.price;
-            updateUser({...state.currentUser, coins:newCoins, inventory:[...owned,item.id]});
-            addActivityLog('shop_buy',{item:item.id,price:isAdminTitle?0:item.price});
-            showToast(item.name+' 구매 완료!'+(isAdminTitle?' (관리자 혜택 적용)':''),'success');
+            const newCoins = isAdminUser ? (state.currentUser.coins||0) : (state.currentUser.coins||0)-item.price;
+            updateUser({...state.currentUser, coins:newCoins, inventory:[...owned, item.id]});
+            addActivityLog('shop_buy',{item:item.id, price:isAdminUser?0:item.price});
+            showToast(item.name+' 구매 완료!'+(isAdminUser?' (관리자 혜택)':''),'success');
           };
+
           const equip = ()=>{
             if(isPotion){
-              updateUser({...state.currentUser,activePotion:item.id});
-              showToast('🧪 '+item.name+' 활성화! 다음 문제에 적용됩니다','success');
+              updateUser({...state.currentUser, activePotion:isEquipped?null:item.id});
+              showToast(isEquipped?'포션 비활성화':'🧪 '+item.name+' 활성화!', 'success');
               return;
             }
-            const already = (state.currentUser.equipped||{})[item.type]===item.id;
-            const newEq = {...(state.currentUser.equipped||{}),[item.type]:already?'':item.id};
-            if(item.type==='title'&&!already){
-              // 칭호 장착 애니메이션
-              const ov=document.createElement('div');
-              ov.style.cssText='position:fixed;inset:0;border:4px solid #ff00aa;z-index:9999;pointer-events:none;background:#ff00aa11;animation:pulse .3s ease 3';
-              document.body.appendChild(ov);
-              setTimeout(()=>ov.remove(),1800);
+            const already = (equipped)[item.type]===item.id;
+            const newEq = {...equipped, [item.type]: already?'':item.id};
+            // 칭호 장착 시 이펙트 재생
+            if(item.type==='title' && !already) {
+              renderTitleEffect(item.id);
             }
-            updateUser({...state.currentUser,equipped:newEq});
+            updateUser({...state.currentUser, equipped:newEq});
+            showToast(already ? item.name+' 해제' : '✦ '+item.name+' 장착!', 'success');
           };
-          return h('div',{style:{background:'var(--panel)',border:'1px solid '+(isEquipped?'var(--cyan)':isOwned?'#00ff9f44':'var(--border)'),
-            padding:'16px',position:'relative',transition:'border .2s'}},
-            isEquipped?h('div',{style:{position:'absolute',top:'6px',right:'8px',fontFamily:'var(--mono)',fontSize:'9px',color:'var(--cyan)'}},'EQUIPPED'):null,
+
+          const rarityLabel = rarityColor[item.rarity]||'var(--dim)';
+
+          return h('div',{style:{background:'var(--panel)',border:'1px solid '+borderCol,
+            padding:'16px',position:'relative',transition:'border .2s, box-shadow .2s',
+            boxShadow: isEquipped ? '0 0 12px '+(titleEff?titleEff.color+'44':'var(--cyan)44') : 'none'}},
+            isEquipped?h('div',{style:{position:'absolute',top:'6px',right:'8px',fontFamily:'var(--mono)',fontSize:'9px',
+              color:titleEff?titleEff.color:'var(--cyan)'}},'✦ ON'):null,
             h('div',{style:{fontSize:'32px',textAlign:'center',marginBottom:'10px'}},item.icon),
-            h('div',{style:{fontFamily:'var(--mono)',fontSize:'9px',color:rarityColor[item.rarity]||'var(--dim)',letterSpacing:'1px',marginBottom:'4px'}},item.rarity.toUpperCase()),
+            h('div',{style:{fontFamily:'var(--mono)',fontSize:'9px',color:rarityLabel,letterSpacing:'1px',marginBottom:'4px'}},item.rarity.toUpperCase()),
             h('div',{style:{fontWeight:'700',marginBottom:'4px',fontSize:'13px'}},item.name),
             item.desc?h('div',{style:{fontFamily:'var(--mono)',fontSize:'10px',color:'var(--dim)',marginBottom:'6px',lineHeight:'1.4'}},item.desc):null,
-            h('div',{style:{fontFamily:'var(--mono)',fontSize:'11px',color:'var(--yellow)',marginBottom:'12px'}},'💰 '+((state.currentUser.equipped||{}).title === 'admin_title' ? 'FREE' : item.price)),
+            h('div',{style:{fontFamily:'var(--mono)',fontSize:'11px',color:'var(--yellow)',marginBottom:'12px'}},
+              '💰 '+(isAdminUser ? 'FREE' : item.price.toLocaleString())),
             isOwned&&!isPotion?
-              h('button',{className:'cpbtn '+(isEquipped?'secondary':'ghost')+' sm',style:{width:'100%'},onClick:equip},isEquipped?'장착 해제':'장착'):
+              h('button',{className:'cpbtn '+(isEquipped?'secondary':'ghost')+' sm',style:{width:'100%'},onClick:equip},
+                isEquipped?'장착 해제':'장착'):
               h('button',{className:'cpbtn primary sm',style:{width:'100%'},onClick:buy},'구매')
           );
         })
@@ -113,7 +140,6 @@ function renderShop() {
     );
   }
 
-  // ── 코인 구매 탭 ──
   if(mainTab==='coins') {
     return h('div',{style:{padding:'28px 0'}},
       h('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'16px'}},
@@ -135,7 +161,6 @@ function renderShop() {
     );
   }
 
-  // ── 프로모코드 탭 ──
   if(mainTab==='promo') {
     const usedPromos = state.currentUser.usedPromos||[];
     const applyPromo = ()=>{
@@ -172,16 +197,17 @@ function renderShop() {
     );
   }
 
-  // ── 이모지샵 탭 ──
   if(mainTab==='emoji') {
     const owned = state.currentUser.inventory||[];
+    const isAdminUser = (state.currentUser.equipped?.title==='admin_title') || state.currentUser.isAdmin;
     return h('div',{style:{padding:'28px 0'}},
       h('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'16px'}},
         h('span',{className:'sec-title'},'// 이모지샵'),
         h('span',{style:{fontFamily:'var(--mono)',fontSize:'12px',color:'var(--yellow)'}},'💰 '+(state.currentUser.coins||0).toLocaleString()+' COINS')
       ),
       tabBar,
-      h('div',{style:{fontFamily:'var(--mono)',fontSize:'11px',color:'var(--dim)',marginBottom:'14px'}},'개당 10,000 코인 | 구매 즉시 아바타 전환 가능'),
+      h('div',{style:{fontFamily:'var(--mono)',fontSize:'11px',color:'var(--dim)',marginBottom:'14px'}},
+        isAdminUser ? '✦ 관리자: 모든 이모지 무료 | 클릭하여 즉시 적용' : '개당 10,000 코인 | 구매 즉시 아바타 전환 가능'),
       h('div',{style:{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(90px,1fr))',gap:'8px'}},
         ...EMOJI_SHOP.map((emoji,i)=>{
           const eid='emoji_'+i;
@@ -193,12 +219,11 @@ function renderShop() {
             onClick:()=>{
               if(isActive){showToast('현재 사용 중인 이모지입니다','info');return;}
               if(!isOwned){
-                const isAdminTitle = (state.currentUser.equipped||{}).title === 'admin_title';
-                if(!isAdminTitle && (state.currentUser.coins||0)<10000){showToast('코인이 부족합니다! (10,000코인 필요)','error');return;}
-                const newCoins = isAdminTitle ? (state.currentUser.coins||0) : (state.currentUser.coins||0)-10000;
+                if(!isAdminUser && (state.currentUser.coins||0)<10000){showToast('코인이 부족합니다! (10,000코인 필요)','error');return;}
+                const newCoins = isAdminUser ? (state.currentUser.coins||0) : (state.currentUser.coins||0)-10000;
                 updateUser({...state.currentUser,coins:newCoins,inventory:[...owned,eid],char:emoji});
-                addActivityLog('emoji_buy',{emoji, price:isAdminTitle?0:10000});
-                showToast(emoji+' 이모지 구매 및 적용 완료!'+(isAdminTitle?' (관리자 혜택 적용)':''),'success');
+                addActivityLog('emoji_buy',{emoji, price:isAdminUser?0:10000});
+                showToast(emoji+' 이모지 구매 및 적용 완료!'+(isAdminUser?' (관리자 혜택)':''),'success');
               } else {
                 updateUser({...state.currentUser,char:emoji});
                 showToast(emoji+' 아바타로 변경!','success');
@@ -207,7 +232,7 @@ function renderShop() {
             h('div',{style:{fontSize:'28px'}},emoji),
             h('div',{style:{fontFamily:'var(--mono)',fontSize:'9px',
               color:isActive?'var(--cyan)':isOwned?'var(--green)':'var(--dim)',marginTop:'6px'}},
-              isActive?'사용중':isOwned?'보유':'10,000')
+              isActive?'사용중':isOwned?'보유':(isAdminUser?'FREE':'10,000'))
           );
         })
       )
