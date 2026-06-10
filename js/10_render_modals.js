@@ -4,7 +4,7 @@ function renderLoginModal() {
     const pw = state.loginForm.password;
     if(uname==='admin'&&pw==='admin1234!') {
       const adminUser={username:'admin',nickname:'관리자',isAdmin:true,xp:999999,coins:999999,score:0,solved:[],achievements:[],job:'etc',country:'KR',flag:'🇰🇷',char:'👾',createdAt:new Date().toISOString()};
-      Object.assign(state,{currentUser:adminUser,modal:null,loginForm:{username:'',password:''},loginError:'',toast:{msg:'👾 관리자 접속!',type:'success'}});
+      Object.assign(state,{currentUser:adminUser,modal:null,loginForm:{username:'',password:''},loginError:'',screen:'admin_panel',adminTab:'problems',toast:{msg:'👾 관리자 접속!',type:'success'}});
       if(toastTimer)clearTimeout(toastTimer);
       toastTimer=setTimeout(()=>setState({toast:null}),3000);
       render(); return;
@@ -20,7 +20,10 @@ function renderLoginModal() {
     ls.set('cp_users', allU.map(u2=>u2.username===withLogin.username?withLogin:u2));
     ls.set('cp_currentUser', {username:withLogin.username});
     addActivityLog('login',{username:withLogin.username});
-    Object.assign(state,{currentUser:withLogin,modal:null,loginForm:{username:'',password:''},loginError:'',attended:false,toast:{msg:'👾 '+(withLogin.nickname||withLogin.username)+' 접속!',type:'success'}});
+    // isAdmin 유저는 로그인 시 바로 관리자 패널로
+    const screenAfterLogin = withLogin.isAdmin ? 'admin_panel' : 'home';
+    const adminTabAfterLogin = withLogin.isAdmin ? 'problems' : undefined;
+    Object.assign(state,{currentUser:withLogin,modal:null,loginForm:{username:'',password:''},loginError:'',attended:false,screen:screenAfterLogin,...(adminTabAfterLogin?{adminTab:adminTabAfterLogin}:{}),toast:{msg:'👾 '+(withLogin.nickname||withLogin.username)+' 접속!',type:'success'}});
     if(toastTimer)clearTimeout(toastTimer);
     toastTimer=setTimeout(()=>setState({toast:null}),3000);
     render();
